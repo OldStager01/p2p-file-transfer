@@ -1,10 +1,6 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Redirect } from "expo-router";
 import React from "react";
 
-export default function index() {
-  return (
-    <View>
-      <Text>Welcome to Dashboard</Text>
-    </View>
-  );
+export default function Index() {
+  return <Redirect href="/(user)/local" />;
 }

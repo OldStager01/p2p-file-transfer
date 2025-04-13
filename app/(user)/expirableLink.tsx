@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from "react-native";
 import React from "react";
 
-export default function other() {
+export default function ExpirableLink() {
   return (
     <View>
-      <Text>Other</Text>
+      <Text>Expirable Table</Text>
     </View>
   );
 }

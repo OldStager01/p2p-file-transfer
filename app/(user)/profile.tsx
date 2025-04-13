@@ -3,7 +3,7 @@ import React from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
 
-export default function profile() {
+export default function Profile() {
   const { session } = useAuth();
   const handleSignOut = () => {
     supabase.auth.signOut();

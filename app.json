@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "SafarSakhi",
-    "slug": "SafarSakhi",
+    "name": "FileTransfer",
+    "slug": "FileTransfer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
