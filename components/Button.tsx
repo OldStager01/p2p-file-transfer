@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Colors from "../constants/Colors";
 import { forwardRef } from "react";
+import { useTheme } from "@react-navigation/native";
 
 type ButtonProps = {
   text: string;
@@ -8,8 +9,13 @@ type ButtonProps = {
 
 const Button = forwardRef<View | null, ButtonProps>(
   ({ text, ...pressableProps }, ref) => {
+    const { colors } = useTheme();
     return (
-      <Pressable ref={ref} {...pressableProps} style={styles.container}>
+      <Pressable
+        ref={ref}
+        {...pressableProps}
+        style={{ ...styles.container, backgroundColor: colors.primary }}
+      >
         <Text style={styles.text}>{text}</Text>
       </Pressable>
     );
@@ -18,7 +24,6 @@ const Button = forwardRef<View | null, ButtonProps>(
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.light.tint,
     padding: 15,
     alignItems: "center",
     borderRadius: 100,

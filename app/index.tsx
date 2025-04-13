@@ -9,7 +9,7 @@ export default function Index() {
   useEffect(() => {
     if (!loading) {
       if (session) {
-        router.replace("/(user)");
+        router.replace("/(user)/(transfer)/local");
       } else {
         router.replace("/signIn");
       }

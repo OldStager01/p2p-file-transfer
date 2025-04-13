@@ -1,14 +1,16 @@
 import { View, Text, TextInput, StyleSheet, Alert } from "react-native";
 import React, { useState } from "react";
 import Button from "@/components/Button";
-import Colors from "@/constants/Colors";
 import { Link, Stack } from "expo-router";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@react-navigation/native";
 
 const SignInScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { colors } = useTheme();
 
   async function signInWithEmail() {
     setLoading(true);
@@ -25,20 +27,30 @@ const SignInScreen = () => {
     <View style={styles.container}>
       <Stack.Screen options={{ title: "Sign in" }} />
 
-      <Text style={styles.label}>Email</Text>
+      <Text style={{ color: colors.text }}>Email</Text>
       <TextInput
         value={email}
         onChangeText={setEmail}
         placeholder="jon@gmail.com"
-        style={styles.input}
+        style={{
+          ...styles.input,
+          backgroundColor: colors.background,
+          color: colors.text,
+          borderColor: colors.border,
+        }}
       />
 
-      <Text style={styles.label}>Password</Text>
+      <Text style={{ color: colors.text }}>Password</Text>
       <TextInput
         value={password}
         onChangeText={setPassword}
         placeholder=""
-        style={styles.input}
+        style={{
+          ...styles.input,
+          backgroundColor: colors.background,
+          color: colors.text,
+          borderColor: colors.border,
+        }}
         secureTextEntry
       />
 
@@ -47,7 +59,10 @@ const SignInScreen = () => {
         disabled={loading}
         text={loading ? "Signing in..." : "Sign in"}
       />
-      <Link href="/signUp" style={styles.textButton}>
+      <Link
+        href="/signUp"
+        style={{ ...styles.textButton, color: colors.primary }}
+      >
         Create an account
       </Link>
     </View>
@@ -65,17 +80,14 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "gray",
     padding: 10,
     marginTop: 5,
     marginBottom: 20,
-    backgroundColor: "white",
     borderRadius: 5,
   },
   textButton: {
     alignSelf: "center",
     fontWeight: "bold",
-    color: Colors.light.tint,
     marginVertical: 10,
   },
 });
