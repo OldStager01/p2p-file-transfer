@@ -10,7 +10,7 @@ export default function SelectTypeCard({
 }: {
   type: string;
   icon: FontAwesomeIconName;
-  onPress: () => void;
+  onPress: any;
 }) {
   const { colors } = useTheme();
   return (

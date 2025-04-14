@@ -1,45 +1,64 @@
 import { StyleSheet, Text, View } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import SelectTypeCard from "./SelectTypeCard";
 import { useTheme } from "@react-navigation/native";
 import { FontAwesomeIconName } from "@/types";
+import {
+  handlePaste,
+  handleSelectApp,
+  handleSelectFile,
+  handleSelectFolder,
+  handleSelectMedia,
+} from "@/utils/handleSelection";
+import TextInputModal from "./TextInputModal";
+import { useSelectedItems } from "@/providers/SelectedItemsProvider";
 
-const selectTypeOptions = [
-  {
-    type: "File",
-    icon: "file",
-    onPress: () => {},
-  },
-  {
-    type: "Media",
-    icon: "photo",
-    onPress: () => {},
-  },
-  {
-    type: "Text",
-    icon: "pencil",
-    onPress: () => {},
-  },
-  {
-    type: "Paste",
-    icon: "clipboard",
-    onPress: () => {},
-  },
-  {
-    type: "Folder",
-    icon: "folder",
-    onPress: () => {},
-  },
-  {
-    type: "App",
-    icon: "cubes",
-    onPress: () => {},
-  },
-];
+// Special function for selecting text (MODAL)
 
 export default function SelectItems() {
   const { colors } = useTheme();
+  const [showTextModal, setTextShowModal] = useState<boolean>(false);
+  const { selectedItems, addToSelection } = useSelectedItems();
+  const handleSelectText = () => {
+    console.log("Selecting Text");
+    setTextShowModal(true);
+  };
 
+  const selectTypeOptions = [
+    {
+      type: "File",
+      icon: "file",
+      onPress: handleSelectFile(addToSelection),
+    },
+    {
+      type: "Media",
+      icon: "photo",
+      onPress: handleSelectMedia(addToSelection),
+    },
+    {
+      type: "Text",
+      icon: "pencil",
+      onPress: handleSelectText,
+    },
+    {
+      type: "Paste",
+      icon: "clipboard",
+      onPress: handlePaste(addToSelection),
+    },
+    {
+      type: "Folder",
+      icon: "folder",
+      onPress: handleSelectFolder,
+    },
+    {
+      type: "App",
+      icon: "cubes",
+      onPress: handleSelectApp,
+    },
+  ];
+  useEffect(() => {
+    console.log("Selected Items:", selectedItems);
+  }, [selectedItems]);
   return (
     <View style={{ ...styles.selectContainer, borderColor: colors.border }}>
       {selectTypeOptions.map((item, index) => (
@@ -50,6 +69,10 @@ export default function SelectItems() {
           onPress={item.onPress}
         />
       ))}
+      <TextInputModal
+        visible={showTextModal}
+        onClose={() => setTextShowModal(false)}
+      />
     </View>
   );
 }

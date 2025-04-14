@@ -18,7 +18,7 @@ export default function SeletedItemCard({
         name={icon}
         size={22}
         style={styles.selectedItemIcon}
-        color={"#90EE90"}
+        color={colors.text}
       />
       <Text
         numberOfLines={1}
@@ -38,7 +38,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     alignItems: "center",
-    maxWidth: 100,
+    maxWidth: 90,
+    width: 90,
     gap: 5,
   },
   selectedItemIcon: {},
