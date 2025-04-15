@@ -1,7 +1,14 @@
-import { View, Text, TextInput, StyleSheet, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
+  Pressable,
+} from "react-native";
 import React, { useState } from "react";
 import Button from "@/components/Button";
-import { Link, Stack } from "expo-router";
+import { Link, router, Stack } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@react-navigation/native";
 
@@ -59,12 +66,15 @@ const SignInScreen = () => {
         disabled={loading}
         text={loading ? "Signing in..." : "Sign in"}
       />
-      <Link
-        href="/signUp"
-        style={{ ...styles.textButton, color: colors.primary }}
+      <Pressable
+        onPress={() => {
+          router.replace("/signUp");
+        }}
       >
-        Create an account
-      </Link>
+        <Text style={{ ...styles.textButton, color: colors.text }}>
+          Create an account
+        </Text>
+      </Pressable>
     </View>
   );
 };

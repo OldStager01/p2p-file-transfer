@@ -1,4 +1,3 @@
-import { View, Text, useColorScheme } from "react-native";
 import React from "react";
 import { Stack } from "expo-router";
 import { useTheme } from "@react-navigation/native";

@@ -1,14 +1,23 @@
-import { View, Text, TextInput, StyleSheet, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
+  Pressable,
+} from "react-native";
 import React, { useState } from "react";
 import Button from "@/components/Button";
 import Colors from "@/constants/Colors";
-import { Link, Stack } from "expo-router";
+import { Link, router, Stack } from "expo-router";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@react-navigation/native";
 
 const SignUpScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { colors } = useTheme();
 
   async function signUpWithEmail() {
     setLoading(true);
@@ -22,20 +31,30 @@ const SignUpScreen = () => {
     <View style={styles.container}>
       <Stack.Screen options={{ title: "Sign up" }} />
 
-      <Text style={styles.label}>Email</Text>
+      <Text style={{ ...styles.label, color: colors.text }}>Email</Text>
       <TextInput
         value={email}
         onChangeText={setEmail}
         placeholder="jon@gmail.com"
-        style={styles.input}
+        style={{
+          ...styles.input,
+          color: colors.text,
+          borderColor: colors.border,
+          backgroundColor: colors.background,
+        }}
       />
 
-      <Text style={styles.label}>Password</Text>
+      <Text style={{ ...styles.label, color: colors.text }}>Password</Text>
       <TextInput
         value={password}
         onChangeText={setPassword}
         placeholder=""
-        style={styles.input}
+        style={{
+          ...styles.input,
+          color: colors.text,
+          borderColor: colors.border,
+          backgroundColor: colors.background,
+        }}
         secureTextEntry
       />
 
@@ -44,9 +63,15 @@ const SignUpScreen = () => {
         disabled={loading}
         text={loading ? "Creating account..." : "Create account"}
       />
-      <Link href="/signIn" style={styles.textButton}>
-        Sign in
-      </Link>
+      <Pressable
+        onPress={() => {
+          router.replace("/signIn");
+        }}
+      >
+        <Text style={{ ...styles.textButton, color: colors.text }}>
+          Sign in
+        </Text>
+      </Pressable>
     </View>
   );
 };
@@ -62,7 +87,6 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "gray",
     padding: 10,
     marginTop: 5,
     marginBottom: 20,
