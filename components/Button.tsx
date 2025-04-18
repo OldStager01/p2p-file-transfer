@@ -8,15 +8,19 @@ type ButtonProps = {
 } & React.ComponentPropsWithoutRef<typeof Pressable>;
 
 const Button = forwardRef<View | null, ButtonProps>(
-  ({ text, ...pressableProps }, ref) => {
+  ({ text, style, ...pressableProps }, ref) => {
     const { colors } = useTheme();
     return (
       <Pressable
         ref={ref}
         {...pressableProps}
-        style={{ ...styles.container, backgroundColor: colors.primary }}
+        style={{
+          ...styles.container,
+          backgroundColor: colors.text,
+          ...(style as object),
+        }}
       >
-        <Text style={styles.text}>{text}</Text>
+        <Text style={{ ...styles.text, color: colors.background }}>{text}</Text>
       </Pressable>
     );
   }

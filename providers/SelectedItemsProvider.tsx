@@ -1,19 +1,6 @@
-import { ItemType } from "@/types";
+import { SelectedItemType, SelectedItemsType } from "@/types";
 import { createContext, useContext, useState } from "react";
 import uuid from "react-native-uuid";
-export type SelectedItemType = {
-  id?: string;
-  type: ItemType;
-  data: any;
-};
-
-export type SelectedItemsType = {
-  selectedItems: SelectedItemType[];
-  addToSelection: (items: SelectedItemType[]) => void;
-  removeFromSelection: (id: string) => void;
-  clearSelection: () => void;
-};
-
 const initialState: SelectedItemsType = {
   selectedItems: [],
   addToSelection: () => {},

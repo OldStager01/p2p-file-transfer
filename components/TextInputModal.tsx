@@ -9,7 +9,7 @@ import {
 import React, { useState } from "react";
 import { useTheme } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { handleTextInput } from "@/utils/handleSelection";
+import { handleTextInput } from "@/utils/handlers";
 import { useSelectedItems } from "@/providers/SelectedItemsProvider";
 export default function TextInputModal({
   visible,

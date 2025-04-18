@@ -7,16 +7,21 @@ import {
   Platform,
   ToastAndroid,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTheme } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import SelectItems from "@/components/SelectItems";
 import SelectedItems from "@/components/SelectedItems";
 import Clipboard from "@react-native-clipboard/clipboard";
+import { useAuth } from "@/providers/AuthProvider";
+import { router, useRouter } from "expo-router";
+import { supabase } from "@/lib/supabase";
+import Button from "@/components/Button";
 
 export default function Internet() {
   const { colors } = useTheme();
   const [connectionCode, setConnectionCode] = useState<string>("659875");
+  const { session, loading, error } = useAuth();
 
   const codeCopy = () => {
     Clipboard.setString(connectionCode);
@@ -24,9 +29,37 @@ export default function Internet() {
       ToastAndroid.show("Connection Code Copied", ToastAndroid.SHORT);
     }
   };
+
+  // Optional: Log out if there's an auth error
+  useEffect(() => {
+    if (error) {
+      supabase.auth.signOut(); // Optional, only if you want to auto-sign-out
+    }
+  }, [error]);
+
+  if (loading) return null; // or loading spinner
+  if (!session) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <Text style={{ color: colors.text, fontSize: 16 }}>
+          You must be logged in to view this page.
+        </Text>
+        <Button
+          style={{ paddingHorizontal: 20 }}
+          text="Sign In"
+          onPress={() => router.push("/signIn")}
+        />
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
-      {/* SELECT */}
       <View style={styles.sectionContainer}>
         <Text style={{ ...styles.sectionHeading, color: colors.text }}>
           Pick
@@ -63,6 +96,7 @@ export default function Internet() {
     </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

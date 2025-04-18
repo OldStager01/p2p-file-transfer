@@ -5,7 +5,7 @@ import { Redirect } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import Internet from "./internet";
-import Profile from "./profile";
+import Profile from "../profile";
 import ExpirableLink from "./expirableLink";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Local from "./local";
@@ -59,10 +59,6 @@ function CustomTabLabel({
 }
 
 export default function _layout() {
-  const { session } = useAuth();
-  if (!session) {
-    return <Redirect href="/signIn" />;
-  }
   const { colors } = useTheme();
   return (
     <SafeAreaView
@@ -115,19 +111,6 @@ export default function _layout() {
           options={{
             tabBarLabel: ({ focused }) => (
               <CustomTabLabel title="Links" iconName="link" focused={focused} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          component={Profile}
-          options={{
-            tabBarLabel: ({ focused }) => (
-              <CustomTabLabel
-                title="Profile"
-                iconName="user"
-                focused={focused}
-              />
             ),
           }}
         />

@@ -7,7 +7,74 @@ export type FontAwesomeIconName = React.ComponentProps<
 export enum ItemType {
   File = "file",
   Media = "media",
+  Folder = "folder",
   Text = "text",
-  Paste = "paste",
   App = "app",
 }
+
+export enum ItemSource {
+  FilePicker = "FilePicker",
+  FolderPicker = "FolderPicker",
+  ImageLibrary = "ImageLibrary",
+  Clipboard = "Clipboard",
+  ManualInput = "ManualInput",
+  AppPicker = "AppPicker",
+}
+
+export type FileData = {
+  name: string;
+  uri: string;
+  size: number;
+  mimeType: string;
+};
+
+export type FolderData = {
+  name: string;
+  uri: string;
+  bookmark?: string;
+};
+
+export type MediaData = FileData; // Reuse FileData if similar
+
+export type TextData = {
+  content: string;
+};
+
+export type SelectedItemType =
+  | {
+      id?: string;
+      type: ItemType.File;
+      source: ItemSource.FilePicker;
+      data: FileData;
+    }
+  | {
+      id?: string;
+      type: ItemType.Folder;
+      source: ItemSource.FolderPicker;
+      data: FolderData;
+    }
+  | {
+      id?: string;
+      type: ItemType.Media;
+      source: ItemSource.ImageLibrary;
+      data: MediaData;
+    }
+  | {
+      id?: string;
+      type: ItemType.Text;
+      sorce: ItemSource.ManualInput | ItemSource.Clipboard;
+      data: TextData;
+    }
+  | {
+      id?: string;
+      type: ItemType.App;
+      soucre: ItemSource.AppPicker;
+      data: any;
+    };
+
+export type SelectedItemsType = {
+  selectedItems: SelectedItemType[];
+  addToSelection: (items: SelectedItemType[]) => void;
+  removeFromSelection: (id: string) => void;
+  clearSelection: () => void;
+};

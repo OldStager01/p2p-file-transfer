@@ -9,7 +9,7 @@ import {
   handleSelectFile,
   handleSelectFolder,
   handleSelectMedia,
-} from "@/utils/handleSelection";
+} from "@/utils/handlers";
 import TextInputModal from "./TextInputModal";
 import { useSelectedItems } from "@/providers/SelectedItemsProvider";
 
@@ -48,7 +48,7 @@ export default function SelectItems() {
     {
       type: "Folder",
       icon: "folder",
-      onPress: handleSelectFolder,
+      onPress: handleSelectFolder(addToSelection),
     },
     {
       type: "App",

@@ -1,0 +1,40 @@
+import { ItemSource, SelectedItemType } from "@/types";
+import { ItemType } from "@/types";
+import { pickDirectory } from "@react-native-documents/picker";
+import { handlePickerError } from "./pickerError.handler";
+
+export const handleSelectFolder = (
+  addToSelection: (items: SelectedItemType[]) => void
+) => {
+  return async () => {
+    try {
+      const res = await pickDirectory({ requestLongTermAccess: true });
+
+      console.log("Selected Folder:", res);
+
+      if (res.status !== "success") {
+        console.warn("Folder selection failed:", res.bookmarkError);
+        return;
+      }
+
+      const nameFromUri =
+        res.uri?.split("/").filter(Boolean).pop()?.split(":").pop() ??
+        "Unnamed Folder";
+
+      const folderItem: SelectedItemType = {
+        type: ItemType.Folder,
+        data: {
+          name: nameFromUri,
+          uri: res.uri,
+          bookmark: res.bookmark,
+        },
+        source: ItemSource.FolderPicker,
+      };
+
+      addToSelection([folderItem]);
+    } catch (err) {
+      console.error("Error selecting folder:", err);
+      handlePickerError(err);
+    }
+  };
+};
