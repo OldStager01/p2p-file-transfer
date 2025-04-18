@@ -1,0 +1,10 @@
+{
+  "version": "v1",
+  "packages": {
+    "@react-native-documents/picker": {
+      "version": "10.1.2",
+      "signature": "43e7ec63f73d303be75f84ab099b87b3",
+      "file": true
+    }
+  }
+}

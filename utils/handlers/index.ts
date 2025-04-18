@@ -1,5 +1,5 @@
 import { handleSelectFile } from "./file.handler";
-import { handleSelectFolder } from "./foler.handler";
+import { handleSelectFolder } from "./folder.handler";
 import { handleSelectMedia } from "./media.handler";
 import { handleTextInput } from "./text.handler";
 import { handlePaste } from "./paste.handler";

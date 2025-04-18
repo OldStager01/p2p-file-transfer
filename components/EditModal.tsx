@@ -10,10 +10,8 @@ import {
 import React, { useEffect, useState } from "react";
 import { useTheme } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import {
-  SelectedItemType,
-  useSelectedItems,
-} from "@/providers/SelectedItemsProvider";
+import { useSelectedItems } from "@/providers/SelectedItemsProvider";
+import { SelectedItemType } from "@/types";
 import EditItemCard from "./EditItemCard";
 import { FontAwesomeIconName, ItemType } from "@/types";
 export default function EditModal({
@@ -39,10 +37,13 @@ export default function EditModal({
         name = item.data.name;
       } else if (item.type === ItemType.Media) {
         icon = "photo";
-        name = item.data.fileName;
+        name = item.data.name;
       } else if (item.type === ItemType.Text) {
         icon = "pencil";
         name = "Text";
+      } else if (item.type === ItemType.Folder) {
+        icon = "folder";
+        name = item.data.name;
       }
       return {
         icon,

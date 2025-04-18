@@ -12,7 +12,7 @@ export const handleSelectFolder = (
 
       console.log("Selected Folder:", res);
 
-      if (res.status !== "success") {
+      if (res.bookmarkStatus !== "success") {
         console.warn("Folder selection failed:", res.bookmarkError);
         return;
       }
@@ -20,7 +20,7 @@ export const handleSelectFolder = (
       const nameFromUri =
         res.uri?.split("/").filter(Boolean).pop()?.split(":").pop() ??
         "Unnamed Folder";
-
+      console.log("Folder Name:", nameFromUri);
       const folderItem: SelectedItemType = {
         type: ItemType.Folder,
         data: {

@@ -62,7 +62,7 @@ export type SelectedItemType =
   | {
       id?: string;
       type: ItemType.Text;
-      sorce: ItemSource.ManualInput | ItemSource.Clipboard;
+      source: ItemSource.ManualInput | ItemSource.Clipboard;
       data: TextData;
     }
   | {

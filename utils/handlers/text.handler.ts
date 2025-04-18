@@ -1,4 +1,4 @@
-import { SelectedItemType } from "@/providers/SelectedItemsProvider";
+import { ItemSource, SelectedItemType } from "@/types";
 import { ItemType } from "@/types";
 
 export const handleTextInput = (
@@ -6,9 +6,12 @@ export const handleTextInput = (
   addToSelection: (items: SelectedItemType[]) => any
 ) => {
   if (!text) return;
-  const data = {
+  const data: SelectedItemType = {
     type: ItemType.Text,
-    data: text,
+    data: {
+      content: text as string,
+    },
+    source: ItemSource.ManualInput,
   };
   addToSelection([data]);
 };

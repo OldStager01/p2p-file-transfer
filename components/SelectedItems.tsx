@@ -37,7 +37,7 @@ export default function SelectedItems() {
         name = "Text";
       } else if (item.type === ItemType.Folder) {
         icon = "folder";
-        name = "Text";
+        name = "Folder";
       }
       return {
         icon,
