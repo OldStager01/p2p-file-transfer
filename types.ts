@@ -78,3 +78,9 @@ export type SelectedItemsType = {
   removeFromSelection: (id: string) => void;
   clearSelection: () => void;
 };
+
+export type LocalDeviceType = {
+  name: string;
+  ip: string;
+  port: number;
+};

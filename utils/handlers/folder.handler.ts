@@ -18,8 +18,14 @@ export const handleSelectFolder = (
       }
 
       const nameFromUri =
-        res.uri?.split("/").filter(Boolean).pop()?.split(":").pop() ??
-        "Unnamed Folder";
+        res.uri
+          ?.split("/")
+          .filter(Boolean)
+          .pop()
+          ?.split("%3A")
+          .pop()
+          ?.split("%2F")
+          .pop() ?? "Unnamed Folder";
       console.log("Folder Name:", nameFromUri);
       const folderItem: SelectedItemType = {
         type: ItemType.Folder,

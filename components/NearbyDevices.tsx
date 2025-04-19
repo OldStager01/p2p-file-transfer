@@ -1,52 +1,55 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import React from "react";
+import {
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useTheme } from "@react-navigation/native";
+import { LocalDeviceType } from "@/types";
+import { useFocusEffect } from "expo-router";
+import useZeroconfService from "@/hooks/useZeroconf";
 
 export default function NearbyDevices() {
   const { colors } = useTheme();
+  const { devices, refreshDevices, stopDiscovery, startAdvertising } =
+    useZeroconfService();
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log("🔄 Refreshing devices...");
+      refreshDevices();
+      return () => {
+        console.log("🛑 Stopping device discovery...");
+        stopDiscovery();
+      };
+    }, [])
+  );
+
+  const device = (dev: LocalDeviceType) => (
+    <Pressable style={{ ...styles.device, borderColor: colors.border }}>
+      <FontAwesome name="wifi" size={20} color={colors.text} />
+      <Text style={{ color: colors.text }}>{dev.name}</Text>
+    </Pressable>
+  );
   return (
     <View style={{ ...styles.container, borderColor: colors.border }}>
       <View style={styles.deviceContainer}>
-        <Pressable style={{ ...styles.device, borderColor: colors.border }}>
-          <FontAwesome name="wifi" size={20} color={colors.text} />
-          <Text style={{ color: colors.text }}>Tanmay's Device</Text>
-        </Pressable>
-        <Pressable style={{ ...styles.device, borderColor: colors.border }}>
-          <FontAwesome name="wifi" size={20} color={colors.text} />
-          <Text style={{ color: colors.text }}>Tanmay's Device</Text>
-        </Pressable>
-        <Pressable style={{ ...styles.device, borderColor: colors.border }}>
-          <FontAwesome name="wifi" size={20} color={colors.text} />
-          <Text style={{ color: colors.text }}>Tanmay's Device</Text>
-        </Pressable>
-        <Pressable style={{ ...styles.device, borderColor: colors.border }}>
-          <FontAwesome name="wifi" size={20} color={colors.text} />
-          <Text style={{ color: colors.text }}>Tanmay's Device</Text>
-        </Pressable>
-        <Pressable style={{ ...styles.device, borderColor: colors.border }}>
-          <FontAwesome name="wifi" size={20} color={colors.text} />
-          <Text style={{ color: colors.text }}>Tanmay's Device</Text>
-        </Pressable>
-        <Pressable style={{ ...styles.device, borderColor: colors.border }}>
-          <FontAwesome name="wifi" size={20} color={colors.text} />
-          <Text style={{ color: colors.text }}>Tanmay's Device</Text>
-        </Pressable>
-        <Pressable style={{ ...styles.device, borderColor: colors.border }}>
-          <FontAwesome name="wifi" size={20} color={colors.text} />
-          <Text style={{ color: colors.text }}>Tanmay's Device</Text>
-        </Pressable>
-        <Pressable style={{ ...styles.device, borderColor: colors.border }}>
-          <FontAwesome name="wifi" size={20} color={colors.text} />
-          <Text style={{ color: colors.text }}>Tanmay's Device</Text>
-        </Pressable>
-
+        <FlatList
+          data={devices}
+          renderItem={({ item }) => device(item)}
+          keyExtractor={(item: LocalDeviceType) => item.ip}
+        />
         {/* Add At End */}
         <View style={styles.refreshSection}>
           <Text style={{ marginTop: 10, color: colors.text }}>
             Can't find your device?
           </Text>
           <Pressable
+            onPress={startAdvertising}
             style={{ ...styles.refreshButton, borderColor: colors.border }}
           >
             <FontAwesome name="refresh" size={20} color={colors.text} />
