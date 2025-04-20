@@ -1,20 +1,14 @@
-import {
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useTheme } from "@react-navigation/native";
 import { LocalDeviceType } from "@/types";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useNavigation } from "expo-router";
 import useZeroconfService from "@/hooks/useZeroconf";
 
 export default function NearbyDevices() {
   const { colors } = useTheme();
+  const navigation = useNavigation();
   const { devices, refreshDevices, stopDiscovery, startAdvertising } =
     useZeroconfService();
 
@@ -29,8 +23,15 @@ export default function NearbyDevices() {
     }, [])
   );
 
+  const sendData = (device: LocalDeviceType) => {
+    (navigation as any).navigate("test", { device });
+  };
+
   const device = (dev: LocalDeviceType) => (
-    <Pressable style={{ ...styles.device, borderColor: colors.border }}>
+    <Pressable
+      style={{ ...styles.device, borderColor: colors.border }}
+      onPress={() => sendData(dev)}
+    >
       <FontAwesome name="wifi" size={20} color={colors.text} />
       <Text style={{ color: colors.text }}>{dev.name}</Text>
     </Pressable>

@@ -5,8 +5,8 @@ export const connectAndSendChunks = ({
   host,
   port,
   chunks,
-  onProgress,
   onConnected,
+  onProgress,
   onError,
   onClose,
 }: TcpClientOptions) => {
@@ -14,24 +14,26 @@ export const connectAndSendChunks = ({
     console.log(`[TCP Client] Connected to ${host}:${port}`);
     onConnected?.();
 
-    let sentCount = 0;
-    chunks.forEach((chunk) => {
-      client.write(chunk);
-      sentCount++;
-      onProgress?.(sentCount, chunks.length);
+    chunks.forEach((chunk, i) => {
+      client?.write(chunk);
+      onProgress?.(i + 1, chunks.length);
     });
 
-    client.end();
+    setTimeout(() => {
+      client?.end(); // Properly ends after buffer flush
+      console.log("[TCP Client] Finished writing, closing connection...");
+    }, 200);
   });
-  client.on("error", (err) => {
+
+  client.on("error", (err: any) => {
     console.error("[TCP Client Error]", err);
     onError?.(err);
+    client?.destroy();
   });
 
   client.on("close", () => {
     console.log("[TCP Client] Connection closed");
     onClose?.();
   });
-
   return client;
 };

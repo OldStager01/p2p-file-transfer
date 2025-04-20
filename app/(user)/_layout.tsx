@@ -9,6 +9,10 @@ import { Pressable, Text, View } from "react-native";
 export default function Layout() {
   const { colors } = useTheme();
   const [historyVisible, setHistoryVisible] = useState(false);
+
+  // !DEV
+  const [testVisible, setTestVisible] = useState(false);
+
   return (
     <SelectedItemsProvider>
       <Tabs
@@ -24,6 +28,18 @@ export default function Layout() {
 
           headerRight: () => (
             <View style={{ flexDirection: "row", gap: 10, marginRight: 10 }}>
+              <Pressable
+                onPress={() => {
+                  setTestVisible(true);
+                }}
+              >
+                <FontAwesome
+                  name="hourglass"
+                  size={24}
+                  color={colors.text}
+                  style={{ marginRight: 10 }}
+                />
+              </Pressable>
               <Pressable
                 onPress={() => {
                   setHistoryVisible(true);
@@ -96,7 +112,6 @@ export default function Layout() {
           name="profile"
           options={{
             title: "Profile",
-            tabBarStyle: { display: "none" }, // Hide the tab
             tabBarIcon: ({ focused, color, size }) => (
               <FontAwesome
                 name="user"
@@ -109,6 +124,26 @@ export default function Layout() {
                 style={{ color: focused ? colors.text : color, fontSize: 10 }}
               >
                 Profile
+              </Text>
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="test"
+          options={{
+            title: "Test",
+            tabBarIcon: ({ focused, color, size }) => (
+              <FontAwesome
+                name="hourglass"
+                size={size}
+                color={focused ? colors.text : color}
+              />
+            ),
+            tabBarLabel: ({ focused, color }) => (
+              <Text
+                style={{ color: focused ? colors.text : color, fontSize: 10 }}
+              >
+                Test
               </Text>
             ),
           }}

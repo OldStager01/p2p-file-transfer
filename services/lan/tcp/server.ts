@@ -1,10 +1,12 @@
 import TcpSocket from "react-native-tcp-socket";
 import { TcpServerOptions } from "./types";
+import { Buffer } from "buffer";
+
 export const startTcpServer = ({
-  port = 8080,
-  host = `0.0.0.0`,
-  onChunkReceived,
+  port = 12345,
+  host = "0.0.0.0",
   onConnection,
+  onChunkReceived,
   onError,
   onClose,
 }: TcpServerOptions) => {
@@ -13,22 +15,26 @@ export const startTcpServer = ({
 
     onConnection?.({ remoteAddress: clientIp });
 
+    let receivedChunks: Buffer[] = [];
+
     socket.on("data", (data) => {
-      const chunk =
-        typeof data === "string"
-          ? Buffer.from(data, "utf-8")
-          : Buffer.from(data);
+      const chunk = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      console.log("[TCP Server Received Chunk]", chunk.toString());
       onChunkReceived(chunk, { remoteAddress: clientIp });
+      receivedChunks.push(chunk); // Accumulate chunks
     });
 
-    socket.on("error", (error) => {
-      console.log("[TCP Server Error]", error);
-      onError?.(error);
+    socket.on("connect", () => {
+      console.log("[TCP Server] Client connected:", clientIp);
+    });
+
+    socket.on("error", (err) => {
+      console.error("[TCP Server Error]", err);
+      onError?.(err);
     });
 
     socket.on("close", () => {
-      console.log("[TCP Server Closed]");
-      onClose?.();
+      console.log("[TCP Server] Connection closed. Processing data...");
     });
   });
 

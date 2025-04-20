@@ -17,7 +17,7 @@ const config = {
   domain: "local",
   // name: String(Math.floor(Math.random() * 1000000)),
   name: DeviceInfo.getDeviceNameSync(),
-  port: 8081,
+  port: 12345,
 };
 
 class ZeroconfService {
@@ -34,21 +34,21 @@ class ZeroconfService {
   }
 
   private init() {
-    this.zeroconf.on("start", () => console.log("Zeroconf scan started"));
-    this.zeroconf.on("stop", () => console.log("Zeroconf scan stopped"));
-    this.zeroconf.on("published", () => console.log("Service advertised"));
+    // this.zeroconf.on("start", () => console.log("Zeroconf scan started"));
+    // this.zeroconf.on("stop", () => console.log("Zeroconf scan stopped"));
+    // this.zeroconf.on("published", () => console.log("Service advertised"));
     this.zeroconf.on("unpublished", () =>
       console.log("Service stopped advertising")
     );
 
     // Event listeners for device discovery
     this.zeroconf.on("found", (serviceName: string) => {
-      console.log(`Found service: ${serviceName}`);
+      // console.log(`Found service: ${serviceName}`);
       this.emitDevicesUpdate();
     });
 
     this.zeroconf.on("resolved", (service) => {
-      console.log(`Resolved service: ${service}`);
+      // console.log(`Resolved service: ${service}`);
       const key = `${service.host}:${service.port}`;
       this.discoveredDevices[key] = {
         name: service.name,
@@ -106,11 +106,11 @@ class ZeroconfService {
 
   // Periodically check for new devices
   private checkForNewDevices() {
-    console.log("Checking for new devices...");
+    // console.log("Checking for new devices...");
     if (Object.keys(this.discoveredDevices).length > 0) {
-      console.log("Devices found:", this.discoveredDevices);
+      // console.log("Devices found:", this.discoveredDevices);
     } else {
-      console.log("No devices found yet.");
+      // console.log("No devices found yet.");
     }
   }
 
