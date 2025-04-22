@@ -10,9 +10,6 @@ export default function Layout() {
   const { colors } = useTheme();
   const [historyVisible, setHistoryVisible] = useState(false);
 
-  // !DEV
-  const [testVisible, setTestVisible] = useState(false);
-
   return (
     <SelectedItemsProvider>
       <Tabs
@@ -28,18 +25,6 @@ export default function Layout() {
 
           headerRight: () => (
             <View style={{ flexDirection: "row", gap: 10, marginRight: 10 }}>
-              <Pressable
-                onPress={() => {
-                  setTestVisible(true);
-                }}
-              >
-                <FontAwesome
-                  name="hourglass"
-                  size={24}
-                  color={colors.text}
-                  style={{ marginRight: 10 }}
-                />
-              </Pressable>
               <Pressable
                 onPress={() => {
                   setHistoryVisible(true);

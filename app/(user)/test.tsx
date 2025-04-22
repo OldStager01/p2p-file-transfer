@@ -1,77 +1,83 @@
-import { Button, StyleSheet, Text, View } from "react-native";
-import React, { useState, useCallback } from "react";
-import { useRoute } from "@react-navigation/native";
-import { startTcpServer } from "@/services/lan/tcp/server";
-import { connectAndSendChunks } from "@/services/lan/tcp/client";
-import { Buffer } from "buffer";
+import React, { useState } from "react";
+import {
+  View,
+  Button,
+  Text,
+  ScrollView,
+  Dimensions,
+  StyleSheet,
+} from "react-native";
+import * as FileSystem from "expo-file-system";
+import { processChunksOnTheFly } from "@/utils/chunkHandling/chunkProcessor";
 
-export default function Test() {
-  const route = useRoute();
-  const { device }: any = route?.params ?? {};
-  const [data, setData] = useState<string>("");
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
-  // Prepare test data buffer
-  const testData = Buffer.from("Hello from Sender!");
+export default function FileChunkTester() {
+  const [logs, setLogs] = useState<string[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [totalSize, setTotalSize] = useState(1); // Prevent division by zero
 
-  // Keep track of whether the server is already running
-  const [isServerRunning, setIsServerRunning] = useState(false);
+  const appendLog = (msg: string) => {
+    setLogs((prev) => [...prev, msg]);
+  };
 
-  const startServer = useCallback(() => {
-    if (isServerRunning) {
-      console.log("Server already running");
-      return;
+  const handlePickFile = async () => {
+    const uri =
+      "content://com.android.externalstorage.documents/document/primary%3ADownload%2Fapp-release.apk";
+
+    setLogs([]);
+    setProgress(0);
+
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri, { size: true });
+      if (!fileInfo.exists) throw new Error("File does not exist");
+
+      const fileSize = fileInfo.size ?? 1;
+      setTotalSize(fileSize);
+
+      appendLog("📂 Starting chunked encryption & upload...");
+
+      await processChunksOnTheFly(uri, (index, encryptedChunk) => {
+        const chunkSize = encryptedChunk.length * (3 / 4); // Approx base64 decoded size
+        setProgress((prev) => Math.min(prev + chunkSize / fileSize, 1));
+
+        if (encryptedChunk === "⏳ started") {
+          setLogs((prev) => [...prev, `🚀 Starting chunk #${index}`]);
+        } else {
+          setLogs((prev) => [...prev, `✅ Chunk #${index} sent`]);
+        }
+      });
+
+      appendLog("✅ All chunks encrypted, sent & cleaned up.");
+    } catch (err: any) {
+      appendLog(`❌ Error: ${err.message}`);
     }
-
-    startTcpServer({
-      port: 12345,
-      onChunkReceived: (chunk: Buffer, info) => {
-        console.log("Received chunk:", chunk.toString());
-        setData(chunk.toString());
-      },
-      onConnection: () => {
-        console.log("Client connected");
-      },
-      onError: (error: any) => {
-        console.log("Error:", error);
-        setIsServerRunning(false);
-      },
-      onClose: () => {
-        console.log("Connection closed");
-        setIsServerRunning(false); // Allow restart
-      },
-    });
-
-    setIsServerRunning(true);
-  }, [isServerRunning]);
-
-  // Send test data to the TCP server (sender)
-  const sendTestData = useCallback(() => {
-    if (!device) {
-      console.log("Device not found");
-      return;
-    }
-
-    connectAndSendChunks({
-      host: device.ip,
-      port: device.port,
-      chunks: [Buffer.from("Hello from Sender!")],
-      onProgress: (i, total) => {
-        console.log(`Sent ${i}/${total}`);
-      },
-      onConnected: () => console.log("Sender Connected"),
-      onError: (err) => {
-        console.log("TCP CLIENT ERROR:", err);
-      },
-    });
-  }, [device, testData]); // Re-run if device or testData changes
+  };
 
   return (
     <View style={styles.container}>
-      <Button title="Start Receiver (Server)" onPress={startServer} />
-      <Button title="Send Test Data" onPress={sendTestData} />
-      <Button title="Clear" onPress={() => setData("")} />
+      <Button title="Pick and Test File Upload" onPress={handlePickFile} />
+      <View style={styles.progressBar}>
+        <View
+          style={[
+            styles.progressFill,
+            { width: `${(progress * 100).toFixed(2)}%` },
+          ]}
+        />
+      </View>
+      <Text style={styles.progressText}>
+        Progress: {(progress * 100).toFixed(1)}%
+      </Text>
 
-      <Text style={styles.dataText}>{data}</Text>
+      <Button title="Clear Logs" onPress={() => setLogs([])} />
+
+      <ScrollView style={{ marginTop: 16 }}>
+        {logs.map((log, index) => (
+          <Text key={index} style={styles.logText}>
+            {log}
+          </Text>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -79,13 +85,27 @@ export default function Test() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 20,
+    padding: 16,
+    marginTop: 50,
+    backgroundColor: "#121212",
   },
-  dataText: {
+  progressBar: {
+    height: 10,
+    marginTop: 16,
+    backgroundColor: "#444",
+    borderRadius: 5,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#4CAF50",
+    borderRadius: 5,
+  },
+  progressText: {
     color: "white",
-    fontSize: 16,
-    marginTop: 20,
+    marginTop: 8,
+  },
+  logText: {
+    color: "white",
+    marginBottom: 8,
   },
 });

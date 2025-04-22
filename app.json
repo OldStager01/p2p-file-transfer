@@ -11,7 +11,11 @@
 
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.oldstager01.FileTransfer"
+      "bundleIdentifier": "com.oldstager01.FileTransfer",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow FileTransfer to access your photos to select and transfer files",
+        "NSDocumentsFolderUsageDescription": "Allow FileTransfer to access your documents to select and transfer files"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +23,26 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.oldstager01.FileTransfer",
-      "permissions": ["ACCESS_FINE_LOCATION", "CHANGE_WIFI_MULTICAST_STATE"]
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "CHANGE_WIFI_MULTICAST_STATE",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "MANAGE_DOCUMENTS"
+      ],
+      "intentFilters": [
+        {
+          "action": "android.intent.action.VIEW",
+          "category": [
+            "android.intent.category.DEFAULT",
+            "android.intent.category.BROWSABLE"
+          ],
+          "data": {
+            "scheme": "content",
+            "host": "*"
+          }
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -46,9 +69,20 @@
       [
         "react-native-permissions",
         {
-          "ios": ["LOCATION_WHEN_IN_USE", "NETWORK"]
+          "ios": ["LOCATION_WHEN_IN_USE", "NETWORK", "PHOTO_LIBRARY"],
+          "android": [
+            "android.permission.READ_EXTERNAL_STORAGE",
+            "android.permission.WRITE_EXTERNAL_STORAGE"
+          ]
         }
-      ]
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      ["expo-file-system"]
     ],
     "experiments": {
       "typedRoutes": true
