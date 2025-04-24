@@ -5,6 +5,8 @@ import {
 } from "@/services/lan/tcp/persistentSender";
 import { encryptChunk } from "../encryption/encryptor";
 import { streamFileInChunks } from "../chunkHandling/fileChunker";
+import * as FileSystem from "expo-file-system";
+import * as mime from "react-native-mime-types";
 import pLimit from "p-limit";
 import uuid from "react-native-uuid";
 import { LocalDeviceType } from "@/types";
@@ -12,10 +14,10 @@ import { LocalDeviceType } from "@/types";
 const concurrencyLimit = 1;
 const limit = pLimit(concurrencyLimit);
 
-// Modified chunk processing with retries
+// Enhanced version with metadata and last chunk signals
 export async function processChunksOnTheFly(
   fileUri: string,
-  onChunkSent?: (index: number, status: string) => void,
+  onChunkSent?: (index: number, status: string, progress?: number) => void,
   device?: LocalDeviceType
 ) {
   if (!device?.ip) {
@@ -24,13 +26,24 @@ export async function processChunksOnTheFly(
 
   const host = device.ip;
   const port = 12345;
-  const sessionId = uuid.v4(); // Unique session ID per file
+  const sessionId = uuid.v4().toString(); // Ensure it's a string
   const MAX_RETRIES = 3;
 
   try {
     // Initialize the sender and keep the connection open
     await initSender(host, port);
     console.log(`TCP connection established to ${host}:${port}`);
+
+    // Get file info including name and mime type
+    const fileInfo = await FileSystem.getInfoAsync(fileUri, { size: true });
+    if (!fileInfo.exists) throw new Error("File does not exist");
+
+    // Extract filename from URI
+    const pathParts = fileUri.split("/");
+    const fileName = pathParts[pathParts.length - 1];
+
+    // Get MIME type based on file extension
+    const mimeType = mime.lookup(fileName) || "application/octet-stream";
 
     const chunks = [];
     let chunkIndex = 0;
@@ -41,7 +54,8 @@ export async function processChunksOnTheFly(
       chunkIndex = Math.max(chunkIndex, index);
     }
 
-    console.log(`Total chunks to process: ${chunks.length}`);
+    const totalChunks = chunks.length;
+    console.log(`Total chunks to process: ${totalChunks}`);
 
     // Process all chunks with controlled concurrency and retries
     await Promise.all(
@@ -55,17 +69,26 @@ export async function processChunksOnTheFly(
             try {
               attempts++;
               console.log(
-                `Transferring Chunk ${index} of ${chunks.length} (Attempt ${attempts})`
+                `Transferring Chunk ${index} of ${totalChunks} (Attempt ${attempts})`
               );
-              onChunkSent?.(index, `⏳ started (Attempt ${attempts})`);
+              onChunkSent?.(
+                index,
+                `⏳ started (Attempt ${attempts})`,
+                index / totalChunks
+              );
 
               const encrypted = await encryptChunk(base64Chunk, index);
-              await sendEncryptedChunk(index, encrypted.data, sessionId);
 
-              console.log(
-                `Chunk ${index} of ${chunks.length} successfully sent`
-              );
-              onChunkSent?.(index, "✅ sent");
+              // Include file metadata with each chunk and mark last chunk
+              await sendEncryptedChunk(index, encrypted.data, sessionId, {
+                fileName,
+                mimeType,
+                totalChunks,
+                isLastChunk: index === totalChunks - 1,
+              });
+
+              console.log(`Chunk ${index} of ${totalChunks} successfully sent`);
+              onChunkSent?.(index, "✅ sent", (index + 1) / totalChunks);
               success = true;
             } catch (err: any) {
               lastError = err;
@@ -73,17 +96,24 @@ export async function processChunksOnTheFly(
                 `[Chunk #${index}] Error (Attempt ${attempts}):`,
                 err
               );
-              onChunkSent?.(index, `⚠️ retrying: ${err.message}`);
+              onChunkSent?.(
+                index,
+                `⚠️ retrying: ${err.message}`,
+                index / totalChunks
+              );
 
               // Wait before retry
-              await new Promise((resolve) => setTimeout(resolve, 1000));
+              await new Promise((resolve) =>
+                setTimeout(resolve, 1000 * attempts)
+              ); // Progressive backoff
             }
           }
 
           if (!success) {
             onChunkSent?.(
               index,
-              `❌ failed after ${MAX_RETRIES} attempts: ${lastError?.message}`
+              `❌ failed after ${MAX_RETRIES} attempts: ${lastError?.message}`,
+              index / totalChunks
             );
             throw (
               lastError ||
@@ -96,10 +126,25 @@ export async function processChunksOnTheFly(
       )
     );
 
-    console.log(`All ${chunks.length} chunks processed successfully`);
+    console.log(`All ${totalChunks} chunks processed successfully`);
+
+    // Send a final completion message
+    try {
+      await sendEncryptedChunk(-1, "", sessionId, {
+        fileName,
+        mimeType,
+        totalChunks,
+        isLastChunk: true,
+        isCompletionMessage: true,
+      });
+      console.log("Sent final completion message");
+    } catch (err) {
+      console.warn("Failed to send completion message:", err);
+      // Non-critical error, continue
+    }
 
     // Add a delay before closing to ensure all data has been transmitted
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
   } catch (err) {
     console.error("Error during file processing:", err);
     throw err;
@@ -109,11 +154,4 @@ export async function processChunksOnTheFly(
     await closeSender();
     console.log("[Persistent TCP] All chunks sent, sender closed.");
   }
-}
-async function isSettled(p: Promise<any>): Promise<boolean> {
-  const marker = Symbol();
-  return Promise.race([p, Promise.resolve(marker)]).then(
-    (v) => v !== marker,
-    () => true
-  );
 }

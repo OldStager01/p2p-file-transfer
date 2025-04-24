@@ -1,25 +1,40 @@
+import { FileReassembler } from "@/utils/chunkHandling/fileReassembler";
 import TcpSocket from "react-native-tcp-socket";
 
 let server: TcpSocket.Server | null = null;
+let fileReassembler: FileReassembler | null = null;
 
 export const startTcpServer = ({
   port = 12345,
   host = "0.0.0.0",
   onConnection,
   onChunkReceived,
+  onFileComplete,
+  onTransferProgress,
   onError,
   onClose,
 }: {
   port?: number;
   host?: string;
   onConnection?: (info: { remoteAddress: string }) => void;
-  onChunkReceived: (
+  onChunkReceived?: (
     chunk: { sessionId: string; index: number; data: string },
     info: { remoteAddress: string }
+  ) => void;
+  onFileComplete?: (fileUri: string, fileName: string) => void;
+  onTransferProgress?: (
+    sessionId: string,
+    receivedChunks: number,
+    totalChunks?: number
   ) => void;
   onError?: (err: any) => void;
   onClose?: () => void;
 }) => {
+  // Initialize file reassembler
+  fileReassembler = new FileReassembler((sessionId, received, total) => {
+    onTransferProgress?.(sessionId, received, total);
+  });
+
   server = TcpSocket.createServer((socket) => {
     const clientIp = socket.remoteAddress ?? "unknown";
     socket.setEncoding?.("utf8");
@@ -51,15 +66,39 @@ export const startTcpServer = ({
                 ? `${parsed.data.slice(0, 20)}... (${parsed.data.length} bytes)`
                 : "No data"
             );
-            onChunkReceived(parsed, { remoteAddress: clientIp });
 
+            // Notify about the received chunk
+            onChunkReceived?.(parsed, { remoteAddress: clientIp });
+
+            // Process chunk through the reassembler
+            if (fileReassembler) {
+              // Register completion callback for this session if not already registered
+              if (onFileComplete && parsed.sessionId) {
+                fileReassembler.onFileComplete(
+                  parsed.sessionId,
+                  onFileComplete
+                );
+              }
+
+              // Process the chunk
+              fileReassembler.processChunk(parsed);
+            }
+
+            // Send acknowledgment back to the sender
             // Send acknowledgment back to the sender
             const ack = JSON.stringify({
               type: "ack",
               sessionId: parsed.sessionId,
               index: parsed.index,
             });
-            socket.write(Buffer.from(ack + "\n"));
+
+            // Use the polyfilled Buffer
+            if (typeof Buffer !== "undefined") {
+              socket.write(Buffer.from(ack + "\n"));
+            } else {
+              // Fallback if Buffer is still not available
+              socket.write(ack + "\n");
+            }
             console.log(`[TCP Server] Sent ACK for chunk ${parsed.index}`);
           } catch (err) {
             console.error("[TCP Server] Failed to parse JSON:", err);
@@ -98,7 +137,11 @@ export const startTcpServer = ({
     stop: () => {
       server?.close();
       server = null;
+      fileReassembler = null;
       console.log("[TCP Server] Stopped.");
+    },
+    getActiveTransfers: () => {
+      return fileReassembler?.getActiveSessions() || {};
     },
   };
 };
@@ -112,5 +155,6 @@ export const stopTcpServer = () => {
       console.error("[TCP Server] Stop error:", err);
     }
     server = null;
+    fileReassembler = null;
   }
 };
