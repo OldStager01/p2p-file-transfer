@@ -2,6 +2,7 @@ import { EventEmitter } from "events";
 import Zeroconf from "react-native-zeroconf";
 import DeviceInfo from "react-native-device-info";
 import { PermissionsAndroid, NativeModules, Platform } from "react-native";
+import * as Network from "expo-network";
 // Define a type for discovered devices
 export type DiscoveredDevice = {
   ip: string;
@@ -10,7 +11,6 @@ export type DiscoveredDevice = {
   txt?: Record<string, any>;
   host?: string;
 };
-
 const config = {
   type: "http",
   protocol: "tcp",
@@ -48,7 +48,8 @@ class ZeroconfService {
     });
 
     this.zeroconf.on("resolved", (service) => {
-      // console.log(`Resolved service: ${service}`);
+      // console.log(`Resolved service:`, service);
+      if (service.port != 12345) return;
       const key = `${service.host}:${service.port}`;
       this.discoveredDevices[key] = {
         name: service.name,
@@ -60,7 +61,7 @@ class ZeroconfService {
     });
 
     this.zeroconf.on("remove", (name: string) => {
-      console.log(`Removed service: ${name}`);
+      // console.log(`Removed service: ${name}`);
       const keyToRemove = Object.keys(this.discoveredDevices).find(
         (key) => this.discoveredDevices[key].name === name
       );

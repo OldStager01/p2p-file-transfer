@@ -3,7 +3,6 @@ import ZeroconfService from "@/services/lan/zeroconfService";
 import { Redirect } from "expo-router";
 import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
-// Import everything from expo-crypto
 export default function Index() {
   const { startAdvertising, stopAdvertising } = useZeroconfService();
   useEffect(() => {

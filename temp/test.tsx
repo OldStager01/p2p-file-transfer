@@ -1,8 +1,8 @@
 import { Button, StyleSheet, Text, View } from "react-native";
 import React, { useState, useCallback } from "react";
 import { useRoute } from "@react-navigation/native";
-import { startTcpServer } from "@/services/lan/tcp/server";
-import { connectAndSendChunks } from "@/services/lan/tcp/client";
+import { startTcpServer } from "@/services/lan/tcp_old/server";
+import { connectAndSendChunks } from "@/services/lan/tcp_old/client";
 import { Buffer } from "buffer";
 
 export default function Test() {

@@ -44,7 +44,7 @@ export type SelectedItemType =
   | {
       id?: string;
       type: ItemType.File;
-      source: ItemSource.FilePicker;
+      source: ItemSource.FilePicker | ItemSource.ImageLibrary;
       data: FileData;
     }
   | {
@@ -70,6 +70,12 @@ export type SelectedItemType =
       type: ItemType.App;
       soucre: ItemSource.AppPicker;
       data: any;
+    }
+  | {
+      id?: string;
+      type: ItemType.Media;
+      source: ItemSource.ImageLibrary | ItemSource.FilePicker;
+      data: MediaData;
     };
 
 export type SelectedItemsType = {

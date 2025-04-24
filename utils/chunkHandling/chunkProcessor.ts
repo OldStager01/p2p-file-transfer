@@ -1,57 +1,119 @@
+import {
+  initSender,
+  sendEncryptedChunk,
+  closeSender,
+} from "@/services/lan/tcp/persistentSender";
+import { encryptChunk } from "../encryption/encryptor";
 import { streamFileInChunks } from "../chunkHandling/fileChunker";
-import { encryptChunk, EncryptedChunk } from "../encryption/encryptor";
-import { sender } from "@/services/sender";
 import pLimit from "p-limit";
+import uuid from "react-native-uuid";
+import { LocalDeviceType } from "@/types";
 
-const concurrencyLimit = 3;
+const concurrencyLimit = 1;
 const limit = pLimit(concurrencyLimit);
 
+// Modified chunk processing with retries
 export async function processChunksOnTheFly(
   fileUri: string,
-  onChunkSent?: (index: number, encrypted: string) => void
+  onChunkSent?: (index: number, status: string) => void,
+  device?: LocalDeviceType
 ) {
-  const iterator = streamFileInChunks(fileUri)[Symbol.asyncIterator]();
-  const runningTasks: Promise<void>[] = [];
-
-  let chunkResult = await iterator.next();
-
-  while (!chunkResult.done) {
-    const { index, base64Chunk } = chunkResult.value;
-
-    const task = limit(async () => {
-      onChunkSent?.(index, "⏳ started");
-
-      const encryptedChunk: EncryptedChunk = await encryptChunk(
-        base64Chunk,
-        index
-      );
-      await sender(index, encryptedChunk);
-
-      onChunkSent?.(index, "✅ sent");
-    });
-
-    runningTasks.push(task);
-
-    if (runningTasks.length >= concurrencyLimit) {
-      await Promise.race(runningTasks);
-      // Remove settled promises
-      for (let i = runningTasks.length - 1; i >= 0; i--) {
-        if (await isSettled(runningTasks[i])) {
-          runningTasks.splice(i, 1);
-        }
-      }
-    }
-
-    chunkResult = await iterator.next();
+  if (!device?.ip) {
+    throw new Error("Device IP is required");
   }
 
-  await Promise.all(runningTasks);
-}
+  const host = device.ip;
+  const port = 12345;
+  const sessionId = uuid.v4(); // Unique session ID per file
+  const MAX_RETRIES = 3;
 
+  try {
+    // Initialize the sender and keep the connection open
+    await initSender(host, port);
+    console.log(`TCP connection established to ${host}:${port}`);
+
+    const chunks = [];
+    let chunkIndex = 0;
+
+    // First, get all chunks and store them
+    for await (const { index, base64Chunk } of streamFileInChunks(fileUri)) {
+      chunks.push({ index, base64Chunk });
+      chunkIndex = Math.max(chunkIndex, index);
+    }
+
+    console.log(`Total chunks to process: ${chunks.length}`);
+
+    // Process all chunks with controlled concurrency and retries
+    await Promise.all(
+      chunks.map(({ index, base64Chunk }) =>
+        limit(async () => {
+          let attempts = 0;
+          let success = false;
+          let lastError = null;
+
+          while (attempts < MAX_RETRIES && !success) {
+            try {
+              attempts++;
+              console.log(
+                `Transferring Chunk ${index} of ${chunks.length} (Attempt ${attempts})`
+              );
+              onChunkSent?.(index, `⏳ started (Attempt ${attempts})`);
+
+              const encrypted = await encryptChunk(base64Chunk, index);
+              await sendEncryptedChunk(index, encrypted.data, sessionId);
+
+              console.log(
+                `Chunk ${index} of ${chunks.length} successfully sent`
+              );
+              onChunkSent?.(index, "✅ sent");
+              success = true;
+            } catch (err: any) {
+              lastError = err;
+              console.error(
+                `[Chunk #${index}] Error (Attempt ${attempts}):`,
+                err
+              );
+              onChunkSent?.(index, `⚠️ retrying: ${err.message}`);
+
+              // Wait before retry
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+          }
+
+          if (!success) {
+            onChunkSent?.(
+              index,
+              `❌ failed after ${MAX_RETRIES} attempts: ${lastError?.message}`
+            );
+            throw (
+              lastError ||
+              new Error(
+                `Failed to send chunk ${index} after ${MAX_RETRIES} attempts`
+              )
+            );
+          }
+        })
+      )
+    );
+
+    console.log(`All ${chunks.length} chunks processed successfully`);
+
+    // Add a delay before closing to ensure all data has been transmitted
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  } catch (err) {
+    console.error("Error during file processing:", err);
+    throw err;
+  } finally {
+    // Only close the sender after all chunks are transferred or on error
+    console.log("Closing TCP connection...");
+    await closeSender();
+    console.log("[Persistent TCP] All chunks sent, sender closed.");
+  }
+}
 async function isSettled(p: Promise<any>): Promise<boolean> {
   const marker = Symbol();
   return Promise.race([p, Promise.resolve(marker)]).then(
-    (value) => value !== marker,
+    (v) => v !== marker,
     () => true
   );
 }

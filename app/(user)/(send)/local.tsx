@@ -10,7 +10,7 @@ import NearbyDevices from "@/components/NearbyDevices";
 export default function Local() {
   const { colors } = useTheme();
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       {/* SELECT */}
       <View style={styles.sectionContainer}>
         <Text style={{ ...styles.sectionHeading, color: colors.text }}>
@@ -40,7 +40,7 @@ export default function Local() {
         </View>
         <NearbyDevices />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 const styles = StyleSheet.create({

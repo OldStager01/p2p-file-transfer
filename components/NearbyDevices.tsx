@@ -12,6 +12,10 @@ export default function NearbyDevices() {
   const { devices, refreshDevices, stopDiscovery, startAdvertising } =
     useZeroconfService();
 
+  // useEffect(() => {
+  //   console.log("🎉 Devices found:", devices);
+  // }, [devices]);
+
   useFocusEffect(
     useCallback(() => {
       console.log("🔄 Refreshing devices...");

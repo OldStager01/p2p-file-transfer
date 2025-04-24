@@ -1,52 +1,56 @@
-import { ItemSource, SelectedItemType } from "@/types";
-import { ItemType } from "@/types";
 import { Alert } from "react-native";
-import { launchImageLibrary } from "react-native-image-picker";
+import { launchImageLibrary, Asset } from "react-native-image-picker";
+import { ItemType, ItemSource, SelectedItemType } from "@/types";
+
+const mapAssetToSelectedItem = (asset: Asset): SelectedItemType => {
+  return {
+    type: ItemType.Media,
+    source: ItemSource.ImageLibrary,
+    data: {
+      name: asset.fileName ?? "Unnamed",
+      uri: asset.uri ?? "",
+      size: asset.fileSize ?? 0,
+      mimeType: asset.type ?? "unknown",
+    },
+  };
+};
 
 export const handleSelectMedia = (
-  addToSelection: (items: SelectedItemType[]) => any
+  addToSelection: (items: SelectedItemType[]) => void
 ) => {
   return async () => {
     try {
       const result = await launchImageLibrary({
-        mediaType: "mixed",
-        selectionLimit: 0, // 0 allows unlimited selection
+        mediaType: "mixed", // Supports images, videos, and possibly audio
+        selectionLimit: 0, // 0 means unlimited selection
       });
 
       if (result.didCancel) {
-        // User canceled the operation; no action needed
+        console.log("User cancelled media selection");
         return;
       }
 
       if (result.errorCode) {
-        Alert.alert("Error", `Media selection error: ${result.errorMessage}`);
-        console.error("Media Picker Error:", result.errorMessage);
+        const message = `Media selection error: ${result.errorMessage}`;
+        Alert.alert("Error", message);
+        console.error("Media Picker Error:", message);
         return;
       }
 
-      if (result.assets?.length) {
-        console.log("Selected Media:", result.assets);
-        const data: SelectedItemType[] = result.assets.map((item) => {
-          return {
-            type: ItemType.Media,
-            source: ItemSource.ImageLibrary,
-            data: {
-              name: item.fileName as string,
-              uri: item.uri as string,
-              size: item.fileSize as number,
-              mimeType: item.type as string,
-            },
-          };
-        });
-        addToSelection(data);
-        // addItem('media', result.assets);
+      const assets = result.assets;
+      if (assets?.length) {
+        const selectedItems = assets.map(mapAssetToSelectedItem);
+        console.log("Selected Media:", selectedItems);
+        addToSelection(selectedItems);
+      } else {
+        console.log("No assets returned from media picker.");
       }
-    } catch (err) {
+    } catch (error) {
       Alert.alert(
         "Error",
         "An unexpected error occurred during media selection."
       );
-      console.error("Media Picker Exception:", err);
+      console.error("Media Picker Exception:", error);
     }
   };
 };
