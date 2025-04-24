@@ -1,15 +1,20 @@
 import TcpSocket from "react-native-tcp-socket";
 
 let client: TcpSocket.Socket | null = null;
-let pendingChunks: Map<number, { resolve: Function; reject: Function }> =
-  new Map();
+let pendingChunks: Map<
+  number,
+  { resolve: Function; reject: Function; timer: NodeJS.Timeout }
+> = new Map();
 let connectionPromise: Promise<void> | null = null;
 let isClosing = false;
-
 export const initSender = async (host: string, port: number): Promise<void> => {
-  if (client && !client.destroyed) {
-    console.log("[Persistent TCP] Already connected");
-    return;
+  // If we already have a client, close it properly first
+  if (client) {
+    try {
+      await closeSender();
+    } catch (err) {
+      console.warn("[Persistent TCP] Error closing existing connection:", err);
+    }
   }
 
   isClosing = false;
@@ -17,6 +22,8 @@ export const initSender = async (host: string, port: number): Promise<void> => {
   if (!connectionPromise) {
     connectionPromise = new Promise<void>((resolve, reject) => {
       try {
+        console.log(`[Persistent TCP] Connecting to ${host}:${port}...`);
+
         client = TcpSocket.createConnection(
           {
             host,
@@ -25,49 +32,107 @@ export const initSender = async (host: string, port: number): Promise<void> => {
           },
           () => {
             console.log("[Persistent TCP] Connected");
+            // Clear the timeout when connected
+            if (connectionTimeoutId) {
+              clearTimeout(connectionTimeoutId);
+              connectionTimeoutId = undefined;
+            }
             resolve();
           }
         );
 
-        client.on("error", (err) => {
-          console.error("[Persistent TCP] Socket error:", err);
-          // Reject all pending promises
-          pendingChunks.forEach(({ reject }) => reject(err));
-          pendingChunks.clear();
+        // Set up a manual timeout
+        let connectionTimeoutId: NodeJS.Timeout | undefined = setTimeout(() => {
+          if (client && !client.destroyed) {
+            console.error("[Persistent TCP] Connection timed out");
+            // Destroy the socket if it exists
+            client.destroy();
+            client = null;
+            reject(new Error("Connection timed out"));
+          }
+        }, 10000);
 
-          if (!isClosing) {
-            reject(err);
+        // Also clear the timeout if there's an error
+        client.once("error", () => {
+          if (connectionTimeoutId) {
+            clearTimeout(connectionTimeoutId);
+            connectionTimeoutId = undefined;
           }
         });
 
         client.on("close", (hasError) => {
           console.log(
             `[Persistent TCP] Connection closed ${
-              hasError ? "with error" : "without error"
+              hasError ? "with error" : "normally"
             }`
           );
+
+          // Clean up
           client = null;
           connectionPromise = null;
 
           // Reject all pending promises with a connection closed error
           if (pendingChunks.size > 0) {
             const err = new Error("Connection closed");
-            pendingChunks.forEach(({ reject }) => reject(err));
+            for (const [
+              index,
+              { reject: rejectFn, timer },
+            ] of pendingChunks.entries()) {
+              clearTimeout(timer);
+              rejectFn(err);
+            }
             pendingChunks.clear();
           }
         });
 
         client.on("data", (data) => {
           try {
-            const response = JSON.parse(data.toString().trim());
-            if (response.type === "ack" && pendingChunks.has(response.index)) {
-              const { resolve } = pendingChunks.get(response.index)!;
-              resolve(response);
-              pendingChunks.delete(response.index);
+            // Process potentially multiple messages in one data packet
+            const messages = data.toString().trim().split("\n");
+
+            for (const message of messages) {
+              if (!message.trim()) continue;
+
+              const response = JSON.parse(message.trim());
+
+              if (
+                response.type === "ack" &&
+                pendingChunks.has(response.index)
+              ) {
+                const { resolve: resolveFn, timer } = pendingChunks.get(
+                  response.index
+                )!;
+                clearTimeout(timer);
+                resolveFn(response);
+                pendingChunks.delete(response.index);
+                console.log(
+                  `[Persistent TCP] Received ACK for chunk ${response.index}`
+                );
+              }
             }
           } catch (err) {
             console.error("[Persistent TCP] Error parsing response:", err);
           }
+        });
+
+        // Set a timeout for the connection
+        const connectionTimeout = setTimeout(() => {
+          if (client && !client.connecting) return; // Already connected
+
+          console.error("[Persistent TCP] Connection timed out");
+          reject(new Error("Connection timed out"));
+
+          if (client) {
+            client.destroy();
+            client = null;
+          }
+
+          connectionPromise = null;
+        }, 15000); // 15 second timeout
+
+        // Clear the timeout once connected
+        client.once("connect", () => {
+          clearTimeout(connectionTimeout);
         });
       } catch (err) {
         console.error("[Persistent TCP] Connection error:", err);
@@ -98,9 +163,6 @@ export const sendEncryptedChunk = async (
 
   return new Promise((resolve, reject) => {
     try {
-      // Store the promise callbacks for this chunk
-      pendingChunks.set(index, { resolve, reject });
-
       // Create the chunk message
       const chunk = JSON.stringify({
         sessionId,
@@ -109,12 +171,13 @@ export const sendEncryptedChunk = async (
         ...metadata,
       });
 
-      // Log first 20 chars of the chunk if it's not too large
-      console.log(
-        `[Persistent TCP] Sending chunk ${index}: ${
-          chunk.length < 100 ? chunk : chunk.substring(0, 20) + "..."
-        }`
-      );
+      // Log chunk info (not the entire data)
+      const logMessage = `[Persistent TCP] Sending chunk ${index}${
+        metadata?.isLastChunk ? " (last chunk)" : ""
+      }${metadata?.isCompletionMessage ? " (completion message)" : ""}: ${
+        chunk.length
+      } bytes`;
+      console.log(logMessage);
 
       // Set a timeout for ACK response
       const timeout = setTimeout(() => {
@@ -122,20 +185,26 @@ export const sendEncryptedChunk = async (
           pendingChunks.delete(index);
           reject(new Error(`Timeout waiting for ACK on chunk ${index}`));
         }
-      }, 10000); // 10 second timeout for ACK
+      }, 20000); // 20 second timeout for ACK - increased for large chunks
+
+      // Store the promise callbacks for this chunk
+      pendingChunks.set(index, { resolve, reject, timer: timeout });
 
       // Send the chunk with newline as terminator
       client!.write(chunk + "\n");
     } catch (err) {
-      pendingChunks.delete(index);
+      if (pendingChunks.has(index)) {
+        clearTimeout(pendingChunks.get(index)!.timer);
+        pendingChunks.delete(index);
+      }
       reject(err);
     }
   });
 };
 
 export const closeSender = async (): Promise<void> => {
-  return new Promise((resolve) => {
-    if (!client || client.destroyed) {
+  return new Promise<void>((resolve) => {
+    if (!client) {
       console.log("[Persistent TCP] No active connection to close");
       resolve();
       return;
@@ -144,15 +213,94 @@ export const closeSender = async (): Promise<void> => {
     isClosing = true;
 
     console.log("[Persistent TCP] Waiting before closing connection...");
+
     // Add a small delay before closing to ensure any pending operations complete
     setTimeout(() => {
       if (client) {
-        client.destroy();
-        client = null;
+        try {
+          // First end the connection gracefully
+          client.end();
+
+          // Use the 'close' event instead for cleanup
+          client.once("close", () => {
+            console.log("[Persistent TCP] Connection ended properly");
+
+            // Clear any remaining pending chunks
+            for (const [
+              index,
+              { reject: rejectFn, timer },
+            ] of pendingChunks.entries()) {
+              clearTimeout(timer);
+              rejectFn(new Error("Connection closed"));
+            }
+            pendingChunks.clear();
+
+            client = null;
+            connectionPromise = null;
+            resolve();
+          });
+
+          // Set a timeout to force destroy if end doesn't complete
+          setTimeout(() => {
+            if (client) {
+              console.log(
+                "[Persistent TCP] Forcing connection closure after timeout"
+              );
+              client.destroy();
+              client = null;
+              connectionPromise = null;
+              resolve();
+            }
+          }, 2000);
+        } catch (err) {
+          console.error("[Persistent TCP] Error ending connection:", err);
+
+          // Fallback to destroy
+          try {
+            if (client) {
+              client.destroy();
+              client = null;
+            }
+          } catch (e) {
+            // Ignore destroy errors
+            console.warn("[Persistent TCP] Error destroying socket:", e);
+          }
+
+          connectionPromise = null;
+          pendingChunks.clear();
+          resolve();
+        }
+      } else {
+        resolve();
       }
-      connectionPromise = null;
-      console.log("[Persistent TCP] Sender closed after delay");
-      resolve();
     }, 1000);
   });
+};
+
+// Function to check if the client is connected
+export const isConnected = (): boolean => {
+  return !!client && !client.destroyed && !client.connecting;
+};
+
+// Function to reset the sender state completely
+export const resetSenderState = () => {
+  if (client) {
+    try {
+      client.destroy();
+    } catch (e) {
+      // Ignore errors
+    }
+    client = null;
+  }
+
+  // Clear all pending chunks and their timers
+  for (const [_, { timer }] of pendingChunks.entries()) {
+    clearTimeout(timer);
+  }
+  pendingChunks.clear();
+
+  connectionPromise = null;
+  isClosing = false;
+
+  console.log("[Persistent TCP] Sender state reset completely");
 };

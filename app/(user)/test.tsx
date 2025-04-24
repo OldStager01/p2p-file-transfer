@@ -80,24 +80,34 @@ export default function FileChunkTester() {
           );
         },
         onFileComplete: (fileUri, fileName) => {
-          appendLog(`✅ File received: ${fileName}`);
+          appendLog(`✅ File downloaded: ${fileName}`);
+          console.log(`[App] File saved to: ${fileUri}`);
+
+          // Get the file extension for proper icon display
+          const extension = fileName.split(".").pop()?.toLowerCase() || "";
+
           setReceivedFiles((prev) => [
             ...prev,
             {
               uri: fileUri,
-              fileName: fileName,
+              fileName,
+              extension,
               size: fileUri ? getFileSizeFromUri(fileUri) : undefined,
             },
           ]);
 
           // Show notification
-          Alert.alert("File Received", `Successfully received: ${fileName}`, [
-            { text: "OK" },
-            {
-              text: "View",
-              onPress: () => shareFile(fileUri),
-            },
-          ]);
+          Alert.alert(
+            "File Downloaded",
+            `Successfully downloaded: ${fileName}`,
+            [
+              { text: "OK" },
+              {
+                text: "Open",
+                onPress: () => shareFile(fileUri),
+              },
+            ]
+          );
         },
         onTransferProgress: (sessionId, receivedChunks, totalChunks) => {
           if (totalChunks) {
@@ -107,7 +117,7 @@ export default function FileChunkTester() {
             appendLog(`📊 Received chunk ${receivedChunks}`);
           }
         },
-        onError: (err) => {
+        onError: (err: any) => {
           appendLog(`❌ Error: ${err.message}`);
           console.error("[TCP Server Error]", err);
         },
@@ -118,7 +128,7 @@ export default function FileChunkTester() {
 
       setIsServerRunning(true);
       appendLog("🟢 Server started on port 12345");
-    } catch (error) {
+    } catch (error: any) {
       appendLog(`❌ Failed to start server: ${error.message}`);
       console.error("Server start error:", error);
     }
@@ -129,7 +139,7 @@ export default function FileChunkTester() {
       stopTcpServer();
       setIsServerRunning(false);
       appendLog("🔴 Server stopped");
-    } catch (error) {
+    } catch (error: any) {
       appendLog(`❌ Error stopping server: ${error.message}`);
     }
   };
@@ -149,7 +159,7 @@ export default function FileChunkTester() {
         mimeType: "*/*",
         dialogTitle: "Open file with...",
       });
-    } catch (error) {
+    } catch (error: any) {
       appendLog(`❌ Error sharing file: ${error.message}`);
     }
   };
@@ -163,7 +173,7 @@ export default function FileChunkTester() {
       }
 
       setReceivedFiles((files) => files.filter((_, i) => i !== index));
-    } catch (error) {
+    } catch (error: any) {
       appendLog(`❌ Error deleting file: ${error.message}`);
     }
   };

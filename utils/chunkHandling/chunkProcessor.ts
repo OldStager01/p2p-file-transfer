@@ -7,6 +7,7 @@ import { encryptChunk } from "../encryption/encryptor";
 import { streamFileInChunks } from "../chunkHandling/fileChunker";
 import * as FileSystem from "expo-file-system";
 import * as mime from "react-native-mime-types";
+// import * as path from "path-browserify";
 import pLimit from "p-limit";
 import uuid from "react-native-uuid";
 import { LocalDeviceType } from "@/types";
@@ -30,32 +31,44 @@ export async function processChunksOnTheFly(
   const MAX_RETRIES = 3;
 
   try {
+    // Make sure the file exists and is readable
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    if (!fileInfo.exists) {
+      throw new Error(`File does not exist: ${fileUri}`);
+    }
+
     // Initialize the sender and keep the connection open
     await initSender(host, port);
     console.log(`TCP connection established to ${host}:${port}`);
-
-    // Get file info including name and mime type
-    const fileInfo = await FileSystem.getInfoAsync(fileUri, { size: true });
-    if (!fileInfo.exists) throw new Error("File does not exist");
 
     // Extract filename from URI
     const pathParts = fileUri.split("/");
     const fileName = pathParts[pathParts.length - 1];
 
     // Get MIME type based on file extension
-    const mimeType = mime.lookup(fileName) || "application/octet-stream";
+    const extension = fileName.split(".").pop() || "";
+    const mimeType = mime.lookup(extension) || "application/octet-stream";
+
+    console.log(
+      `[ChunkProcessor] Processing file: ${fileName}, MIME: ${mimeType}`
+    );
 
     const chunks = [];
     let chunkIndex = 0;
 
-    // First, get all chunks and store them
-    for await (const { index, base64Chunk } of streamFileInChunks(fileUri)) {
-      chunks.push({ index, base64Chunk });
-      chunkIndex = Math.max(chunkIndex, index);
+    // First, get all chunks
+    try {
+      for await (const { index, base64Chunk } of streamFileInChunks(fileUri)) {
+        chunks.push({ index, base64Chunk });
+        chunkIndex = Math.max(chunkIndex, index);
+      }
+    } catch (error: any) {
+      console.error(`[ChunkProcessor] Error reading file chunks:`, error);
+      throw new Error(`Failed to read file chunks: ${error.message || error}`);
     }
 
     const totalChunks = chunks.length;
-    console.log(`Total chunks to process: ${totalChunks}`);
+    console.log(`[ChunkProcessor] Total chunks to process: ${totalChunks}`);
 
     // Process all chunks with controlled concurrency and retries
     await Promise.all(
@@ -69,7 +82,7 @@ export async function processChunksOnTheFly(
             try {
               attempts++;
               console.log(
-                `Transferring Chunk ${index} of ${totalChunks} (Attempt ${attempts})`
+                `[ChunkProcessor] Transferring Chunk ${index} of ${totalChunks} (Attempt ${attempts})`
               );
               onChunkSent?.(
                 index,
@@ -87,7 +100,9 @@ export async function processChunksOnTheFly(
                 isLastChunk: index === totalChunks - 1,
               });
 
-              console.log(`Chunk ${index} of ${totalChunks} successfully sent`);
+              console.log(
+                `[ChunkProcessor] Chunk ${index} of ${totalChunks} successfully sent`
+              );
               onChunkSent?.(index, "✅ sent", (index + 1) / totalChunks);
               success = true;
             } catch (err: any) {
@@ -126,7 +141,9 @@ export async function processChunksOnTheFly(
       )
     );
 
-    console.log(`All ${totalChunks} chunks processed successfully`);
+    console.log(
+      `[ChunkProcessor] All ${totalChunks} chunks processed successfully`
+    );
 
     // Send a final completion message
     try {
@@ -137,21 +154,21 @@ export async function processChunksOnTheFly(
         isLastChunk: true,
         isCompletionMessage: true,
       });
-      console.log("Sent final completion message");
+      console.log("[ChunkProcessor] Sent final completion message");
     } catch (err) {
-      console.warn("Failed to send completion message:", err);
+      console.warn("[ChunkProcessor] Failed to send completion message:", err);
       // Non-critical error, continue
     }
 
     // Add a delay before closing to ensure all data has been transmitted
     await new Promise((resolve) => setTimeout(resolve, 3000));
   } catch (err) {
-    console.error("Error during file processing:", err);
+    console.error("[ChunkProcessor] Error during file processing:", err);
     throw err;
   } finally {
     // Only close the sender after all chunks are transferred or on error
-    console.log("Closing TCP connection...");
+    console.log("[ChunkProcessor] Closing TCP connection...");
     await closeSender();
-    console.log("[Persistent TCP] All chunks sent, sender closed.");
+    console.log("[ChunkProcessor] All chunks sent, sender closed.");
   }
 }

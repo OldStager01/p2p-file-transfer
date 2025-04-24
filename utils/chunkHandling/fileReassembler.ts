@@ -1,8 +1,12 @@
 import * as FileSystem from "expo-file-system";
 import { Platform } from "react-native";
-import * as Sharing from "expo-sharing";
-import { Alert } from "react-native";
+// import * as Sharing from "expo-sharing";
+// import { Alert } from "react-native";
 import { decryptChunk } from "../encryption/decryptor";
+import * as MediaLibrary from "expo-media-library";
+// import * as Permissions from "expo-permissions";
+import * as mime from "react-native-mime-types";
+// import * as path from "path-browserify";
 
 type FileChunk = {
   sessionId: string;
@@ -120,7 +124,10 @@ export class FileReassembler {
   }
 
   // Check if a file is complete and if so, reassemble it
-  private async checkAndProcessCompletedFile(sessionId: string): Promise<void> {
+  private async checkAndProcessCompletedFile(
+    sessionId: string,
+    force: boolean = false
+  ): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
@@ -131,18 +138,23 @@ export class FileReassembler {
     // Single chunk file detection
     const isSingleChunk = session.receivedChunks === 1;
 
-    // If we know the file is complete or we received a large number of chunks or it's a single chunk
+    // If we know the file is complete, or forcing completion, or it's a single chunk
     if (
+      force ||
       isKnownComplete ||
       (session.receivedChunks > 100 && !session.totalChunks) ||
       isSingleChunk
     ) {
-      if (isSingleChunk) {
+      if (isSingleChunk && !force) {
         console.log(
           `[FileReassembler] Single chunk file detected for session ${sessionId}`
         );
-        // Small delay for single chunk files to ensure all data is received
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+      if (force) {
+        console.log(
+          `[FileReassembler] Forcing completion of session ${sessionId}`
+        );
       }
 
       try {
@@ -201,25 +213,32 @@ export class FileReassembler {
         (a, b) => a - b
       );
 
-      // Generate a file name with appropriate extension
+      // Generate a file name with appropriate extension based on MIME type
       const fileName = this.generateFileName(session);
 
-      // Create a directory in the app's document directory
-      const downloadDir = `${FileSystem.documentDirectory}downloads/`;
-      await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
-      const fileUri = `${downloadDir}${fileName}`;
+      let fileUri;
 
-      console.log(`[FileReassembler] Saving file to: ${fileUri}`);
+      // First save to app's cache directory (always works on both platforms)
+      const tempDir = `${FileSystem.cacheDirectory}downloads/`;
+      await FileSystem.makeDirectoryAsync(tempDir, { intermediates: true });
+      const tempFileUri = `${tempDir}${fileName}`;
 
-      // Create and write to file
-      await this.writeChunksToFile(fileUri, sortedIndices, session);
+      console.log(`[FileReassembler] Saving temporary file to: ${tempFileUri}`);
 
-      console.log(`[FileReassembler] File written successfully`);
+      // Create and write to temp file
+      await this.writeChunksToFile(tempFileUri, sortedIndices, session);
 
-      // Save to downloads on Android
+      console.log(`[FileReassembler] Temp file written successfully`);
+
+      // Now save to the actual device downloads folder based on platform
       if (Platform.OS === "android") {
-        await this.saveToAndroidDownloads(fileUri, fileName);
+        fileUri = await this.saveToAndroidDownloads(tempFileUri, fileName);
+      } else {
+        // On iOS, we'll use MediaLibrary
+        fileUri = await this.saveToIOSDownloads(tempFileUri, fileName);
       }
+
+      console.log(`[FileReassembler] File saved to downloads: ${fileUri}`);
 
       return fileUri;
     } catch (error) {
@@ -233,37 +252,62 @@ export class FileReassembler {
 
   // Save to Android Downloads folder
   private async saveToAndroidDownloads(
-    fileUri: string,
+    tempFileUri: string,
     fileName: string
-  ): Promise<void> {
+  ): Promise<string> {
     try {
-      console.log(`[FileReassembler] Sharing file to Downloads: ${fileName}`);
+      console.log(`[FileReassembler] Saving to Android Downloads: ${fileName}`);
 
-      // Show share dialog to save the file
-      await Sharing.shareAsync(fileUri, {
-        mimeType: "*/*",
-        dialogTitle: `Save ${fileName}`,
-        UTI: "public.item",
-      });
+      // Get permissions first (needed for Android 10+)
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        throw new Error("Media library permission not granted");
+      }
 
-      console.log(`[FileReassembler] Share dialog displayed for ${fileName}`);
+      // Save the file to media library
+      const asset = await MediaLibrary.createAssetAsync(tempFileUri);
 
-      // Notify user
-      Alert.alert(
-        "File Downloaded",
-        `${fileName} was downloaded successfully!`,
-        [{ text: "OK" }]
-      );
+      // Get the album for Downloads
+      const album = await MediaLibrary.getAlbumAsync("Download");
+      if (album) {
+        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+      } else {
+        // If Download album doesn't exist, create it
+        await MediaLibrary.createAlbumAsync("Download", asset, false);
+      }
+
+      console.log(`[FileReassembler] File saved to Downloads: ${asset.uri}`);
+      return asset.uri;
     } catch (error) {
-      console.error(`[FileReassembler] Share error:`, error);
-
-      // Still notify user where the file is
-      Alert.alert("File Saved", `File saved to app storage: ${fileUri}`, [
-        { text: "OK" },
-      ]);
+      console.error(`[FileReassembler] Failed to save to Downloads:`, error);
+      // Return the temp file as a fallback
+      return tempFileUri;
     }
   }
 
+  private async saveToIOSDownloads(
+    tempFileUri: string,
+    fileName: string
+  ): Promise<string> {
+    try {
+      console.log(`[FileReassembler] Saving to iOS library: ${fileName}`);
+
+      // Get permissions first
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        throw new Error("Media library permission not granted");
+      }
+
+      // Save the file to media library
+      const asset = await MediaLibrary.createAssetAsync(tempFileUri);
+      console.log(`[FileReassembler] File saved to iOS library: ${asset.uri}`);
+      return asset.uri;
+    } catch (error) {
+      console.error(`[FileReassembler] Failed to save to iOS library:`, error);
+      // Return the temp file as a fallback
+      return tempFileUri;
+    }
+  }
   // Write chunks to file
   private async writeChunksToFile(
     fileUri: string,
@@ -291,26 +335,16 @@ export class FileReassembler {
 
       // Get final file info for logging
       const savedInfo = await FileSystem.getInfoAsync(fileUri, { size: true });
+      if (!savedInfo.exists) {
+        console.error(`[FileReassembler] File not found: ${fileUri}`);
+        throw new Error(`File not found: ${fileUri}`);
+      }
       console.log(`[FileReassembler] File written to: ${fileUri}`);
       console.log(`[FileReassembler] File size: ${savedInfo.size} bytes`);
     } catch (error) {
       console.error(`[FileReassembler] Error writing chunks to file:`, error);
       throw error;
     }
-  }
-
-  // Generate a filename with appropriate extension
-  private generateFileName(session: FileSession): string {
-    let fileName = session.fileName || `file_${Date.now()}`;
-
-    // Add extension based on mimeType if not already present
-    if (session.mimeType && !fileName.includes(".")) {
-      const extension = this.getExtensionFromMimeType(session.mimeType);
-      if (extension) fileName = `${fileName}.${extension}`;
-    }
-
-    // Sanitize file name
-    return fileName.replace(/[/\\?%*:|"<>]/g, "_");
   }
 
   // Helper to get extension from mime type
@@ -381,5 +415,81 @@ export class FileReassembler {
     this.sessions.forEach((_, sessionId) => {
       this.checkAndProcessCompletedFile(sessionId);
     });
+  }
+  public forceCompleteSession(sessionId: string): void {
+    console.log(`[FileReassembler] Force completing session ${sessionId}`);
+    this.checkAndProcessCompletedFile(sessionId, true);
+  }
+
+  // Update the checkAndProcessCompletedFile method to accept a force parameter
+
+  private getFileExtensionFromData(data: string): string | null {
+    // Detect file type from the base64 data signature
+    // Most file formats have magic bytes at the beginning that can identify them
+
+    // Check if it's a PNG
+    if (data.startsWith("iVBORw0KGgo")) {
+      return "png";
+    }
+
+    // Check if it's a JPEG
+    if (data.startsWith("/9j/") || data.startsWith("JVBERi0x")) {
+      return "jpg";
+    }
+
+    // Check if it's a PDF
+    if (data.startsWith("JVBERi0x")) {
+      return "pdf";
+    }
+
+    // Check if it's a GIF
+    if (data.startsWith("R0lGODlh") || data.startsWith("R0lGODdh")) {
+      return "gif";
+    }
+
+    // Add more signatures as needed
+
+    // If none matched, return null
+    return null;
+  }
+
+  // Update the generateFileName method to be more robust
+  private generateFileName(session: FileSession): string {
+    // Start with the provided name or a timestamp
+    let fileName = session.fileName || `file_${Date.now()}`;
+    let extension = null;
+
+    // First attempt: Get extension from the provided fileName
+    const lastDot = fileName.lastIndexOf(".");
+    if (lastDot > 0) {
+      // Filename already has extension
+      return fileName;
+    }
+
+    // Second attempt: Get extension from mimeType
+    if (session.mimeType) {
+      extension = mime.extension(session.mimeType);
+    }
+
+    // Third attempt: Try to detect from the first chunk content
+    if (!extension && session.chunks.has(0)) {
+      const firstChunkData = session.chunks.get(0) || "";
+      extension = this.getFileExtensionFromData(firstChunkData);
+    }
+    // Fourth attempt: Check original file path if available
+    // if (!extension && session.originalPath) {
+    //   const pathExt = path.extname(session.originalPath);
+    //   if (pathExt && pathExt.length > 1) {
+    //     extension = pathExt.substring(1); // Remove the dot
+    //   }
+    // }
+
+    // If we found an extension, add it
+    if (extension) {
+      fileName = `${fileName}.${extension}`;
+    }
+
+    // Sanitize file name
+    return fileName.replace(/[/\\?%*:|"<>]/g, "_");
   }
 }
