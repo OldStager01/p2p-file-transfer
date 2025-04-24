@@ -19,11 +19,12 @@ export default function RootLayout() {
               backgroundColor: theme.colors.background,
               flex: 1,
             },
+            headerShown: false,
           }}
         >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(user)" options={{ headerShown: false }} />
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(user)" />
         </Stack>
       </AuthProvider>
     </ThemeProvider>

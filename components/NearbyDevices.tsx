@@ -1,66 +1,206 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import React, { useCallback, useEffect, useState } from "react";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  FlatList,
+  ActivityIndicator,
+  Platform,
+} from "react-native";
 import { useTheme } from "@react-navigation/native";
-import { LocalDeviceType } from "@/types";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useNavigation } from "expo-router";
+
+import { LocalDeviceType } from "@/types";
 import useZeroconfService from "@/hooks/useZeroconf";
+import { SPACING, RADIUS, FONTS, COLORS, SHADOWS } from "@/themes";
 
 export default function NearbyDevices() {
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const { devices, refreshDevices, stopDiscovery, startAdvertising } =
-    useZeroconfService();
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
 
-  // useEffect(() => {
-  //   console.log("🎉 Devices found:", devices);
-  // }, [devices]);
+  const {
+    devices,
+    refreshDevices,
+    stopDiscovery,
+    startDiscovery,
+    startAdvertising,
+  } = useZeroconfService();
+
+  // Animation setup for refreshing button
+  const rotateAnim = React.useRef(new Animated.Value(0)).current;
+  const rotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  // Start animation when refreshing
+  useEffect(() => {
+    if (refreshing) {
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      rotateAnim.setValue(0);
+    }
+  }, [refreshing]);
 
   useFocusEffect(
     useCallback(() => {
-      console.log("🔄 Refreshing devices...");
-      refreshDevices();
+      handleRefresh();
       return () => {
         console.log("🛑 Stopping device discovery...");
         stopDiscovery();
+        setRefreshing(false);
       };
     }, [])
   );
 
-  const sendData = (device: LocalDeviceType) => {
-    (navigation as any).navigate("test", { device });
+  const handleRefresh = () => {
+    if (Platform.OS === "ios") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    setRefreshing(true);
+    console.log("🔄 Refreshing devices...");
+    startAdvertising();
+    startDiscovery();
+
+    refreshDevices();
+    // Auto stop refreshing after 5 seconds
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 5000);
   };
 
-  const device = (dev: LocalDeviceType) => (
-    <Pressable
-      style={{ ...styles.device, borderColor: colors.border }}
-      onPress={() => sendData(dev)}
-    >
-      <FontAwesome name="wifi" size={20} color={colors.text} />
-      <Text style={{ color: colors.text }}>{dev.name}</Text>
-    </Pressable>
-  );
-  return (
-    <View style={{ ...styles.container, borderColor: colors.border }}>
-      <View style={styles.deviceContainer}>
-        <FlatList
-          data={devices}
-          renderItem={({ item }) => device(item)}
-          keyExtractor={(item: LocalDeviceType) => item.ip}
-        />
-        {/* Add At End */}
-        <View style={styles.refreshSection}>
-          <Text style={{ marginTop: 10, color: colors.text }}>
-            Can't find your device?
-          </Text>
-          <Pressable
-            onPress={startAdvertising}
-            style={{ ...styles.refreshButton, borderColor: colors.border }}
-          >
-            <FontAwesome name="refresh" size={20} color={colors.text} />
-            <Text style={{ color: colors.text }}>Refresh</Text>
-          </Pressable>
+  const handleDevicePress = (device: LocalDeviceType) => {
+    if (Platform.OS === "ios") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    setSelectedDevice(device.ip);
+    setTimeout(() => {
+      (navigation as any).navigate("test", { device });
+    }, 200);
+  };
+
+  const renderDeviceItem = ({ item }: { item: LocalDeviceType }) => {
+    const isSelected = selectedDevice === item.ip;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.deviceItem,
+          {
+            backgroundColor: colors.card,
+            borderColor: isSelected ? colors.primary : colors.border,
+            borderWidth: isSelected ? 2 : 1,
+          },
+        ]}
+        onPress={() => handleDevicePress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.deviceIconContainer}>
+          <Ionicons
+            name="phone-portrait-outline"
+            size={24}
+            color={colors.text}
+          />
         </View>
+
+        <View style={styles.deviceInfo}>
+          <Text style={[styles.deviceName, { color: colors.text }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.deviceIp, { color: colors.text + "80" }]}>
+            {item.ip}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.statusIndicator,
+            { backgroundColor: COLORS.statusIndicator.online },
+          ]}
+        />
+      </TouchableOpacity>
+    );
+  };
+
+  const EmptyDevicesList = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons
+        name="wifi-outline"
+        size={40}
+        color={colors.text}
+        style={{ opacity: 0.5 }}
+      />
+      <Text style={[styles.emptyText, { color: colors.text }]}>
+        No devices found
+      </Text>
+      <Text style={[styles.emptySubText, { color: colors.text + "80" }]}>
+        Make sure other devices are on the same network
+      </Text>
+    </View>
+  );
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.card }]}>
+      <FlatList
+        data={devices}
+        renderItem={renderDeviceItem}
+        keyExtractor={(item: LocalDeviceType) => item.ip}
+        contentContainerStyle={styles.deviceListContent}
+        ListEmptyComponent={EmptyDevicesList}
+        showsVerticalScrollIndicator={false}
+      />
+
+      <View style={styles.refreshContainer}>
+        <TouchableOpacity
+          style={[
+            styles.refreshButton,
+            {
+              backgroundColor: refreshing
+                ? colors.primary + "20"
+                : colors.primary,
+              opacity: refreshing ? 0.8 : 1,
+            },
+          ]}
+          onPress={handleRefresh}
+          disabled={refreshing}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Animated.View style={{ transform: [{ rotate: rotation }] }}>
+              <Ionicons
+                name="refresh-outline"
+                size={20}
+                color={refreshing ? colors.primary : "#FFF"}
+              />
+            </Animated.View>
+          )}
+          <Text
+            style={[
+              styles.refreshText,
+              {
+                color: refreshing ? colors.primary : "#FFF",
+              },
+            ]}
+          >
+            {refreshing ? "Searching..." : "Refresh"}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -68,33 +208,82 @@ export default function NearbyDevices() {
 
 const styles = StyleSheet.create({
   container: {
-    borderWidth: 1,
-    borderRadius: 5,
-    padding: 10,
+    borderRadius: RADIUS.md,
+    overflow: "hidden",
+    minHeight: 120,
+    ...SHADOWS.small,
   },
-  deviceContainer: {
-    gap: 10,
+  deviceListContent: {
+    padding: SPACING.md,
+    paddingBottom: SPACING.xl * 2, // Extra space for the refresh button
   },
-  device: {
+  deviceItem: {
     flexDirection: "row",
     alignItems: "center",
-    columnGap: 15,
-    padding: 10,
-    borderWidth: 2,
-    borderRadius: 5,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.sm,
+    ...SHADOWS.small,
   },
-  refreshSection: {
-    alignSelf: "center",
+  deviceIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.round,
+    backgroundColor: "rgba(150, 150, 150, 0.1)",
+    justifyContent: "center",
     alignItems: "center",
-    rowGap: 10,
+  },
+  deviceInfo: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  deviceName: {
+    fontSize: FONTS.sizes.body,
+    fontWeight: FONTS.weights.medium,
+  },
+  deviceIp: {
+    fontSize: FONTS.sizes.caption,
+    marginTop: 2,
+  },
+  statusIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: RADIUS.round,
+  },
+  emptyContainer: {
+    padding: SPACING.xl,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    fontSize: FONTS.sizes.subtitle,
+    fontWeight: FONTS.weights.medium,
+    marginTop: SPACING.sm,
+  },
+  emptySubText: {
+    fontSize: FONTS.sizes.caption,
+    textAlign: "center",
+    marginTop: SPACING.xs,
+    maxWidth: "80%",
+  },
+  refreshContainer: {
+    position: "absolute",
+    bottom: SPACING.md,
+    left: 0,
+    right: 0,
+    alignItems: "center",
   },
   refreshButton: {
     flexDirection: "row",
     alignItems: "center",
-    columnGap: 10,
-    borderWidth: 2,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.round,
+    ...SHADOWS.small,
+  },
+  refreshText: {
+    marginLeft: SPACING.xs,
+    fontSize: FONTS.sizes.body,
+    fontWeight: FONTS.weights.medium,
   },
 });

@@ -22,6 +22,7 @@ export default function Layout() {
             color: colors.text,
           },
           headerShadowVisible: false,
+          // headerShown
 
           headerRight: () => (
             <View style={{ flexDirection: "row", gap: 10, marginRight: 10 }}>
