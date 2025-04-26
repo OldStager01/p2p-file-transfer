@@ -19,12 +19,18 @@ import Button from "@/components/Button";
 import { useSelectedItems } from "@/providers/SelectedItemsProvider";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "@/themes";
 import * as Haptics from "expo-haptics";
+import { SelectedItemType } from "@/types";
 
 export default function UploadSummary({
   connectionCode,
   uploadDetails,
   selectedItems,
   onUploadMore,
+}: {
+  connectionCode: string;
+  uploadDetails: any;
+  selectedItems: SelectedItemType[];
+  onUploadMore: () => void;
 }) {
   const { colors } = useTheme();
   const { clearSelection } = useSelectedItems();
@@ -62,13 +68,13 @@ export default function UploadSummary({
     return () => clearTimeout(timer);
   }, []);
 
-  const formatSize = (bytes) => {
+  const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const formatDate = (date) => {
+  const formatDate = (date: Date) => {
     if (!date) return "No expiry";
     return date.toLocaleDateString(undefined, {
       year: "numeric",

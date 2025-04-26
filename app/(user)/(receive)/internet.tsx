@@ -47,15 +47,15 @@ export default function InternetReceive() {
   const { colors } = useTheme();
   const [connectionCode, setConnectionCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
   const [transferFound, setTransferFound] = useState(false);
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [transfer, setTransfer] = useState(null);
   const { session, loading: authLoading, error } = useAuth();
 
-  const clearErrors = () => setErrorMessage(null);
+  const clearErrors = () => setErrorMessage("");
 
-  const handleCodeChange = (text) => {
+  const handleCodeChange = (text: string) => {
     // Remove any non-numeric characters and limit to 6 digits
     const cleanedText = text.replace(/[^0-9]/g, "").slice(0, 6);
     setConnectionCode(cleanedText);
@@ -70,32 +70,32 @@ export default function InternetReceive() {
     }
 
     setLoading(true);
-    setErrorMessage(null);
+    setErrorMessage("");
 
     try {
       // In a real implementation, fetch from Supabase
-      // const { data, error } = await supabase
-      //   .from('transfers')
-      //   .select('*')
-      //   .eq('connection_code', codeToUse)
-      //   .single();
+      const { data, error } = await supabase
+        .from("transfers")
+        .select("*")
+        .eq("connection_code", codeToUse)
+        .single();
 
-      // if (error) throw new Error("Invalid code or transfer not found");
-
+      if (error) throw new Error("Invalid code or transfer not found");
+      console.log("Accessing files:", data);
       // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Check if transfer exists and is valid
-      if (codeToUse === "123456") {
+      if (data) {
         // Check if transfer is expired
-        if (new Date(SAMPLE_TRANSFER.expires_at) < new Date()) {
+        if (data.expires_at && new Date(data.expires_at) < new Date()) {
           setErrorMessage("This transfer has expired");
           setTransferFound(false);
           return;
         }
 
         // Check if user has access (if not public)
-        if (!SAMPLE_TRANSFER.is_public && session) {
+        if (!data.is_public && session) {
           // For non-public transfers, check if user is in allowed_emails
           // This is just a mock - in a real app, check against the allowed_emails array
           const hasAccess = true; // Simulate access check
@@ -108,13 +108,13 @@ export default function InternetReceive() {
           }
         }
 
-        setTransfer(SAMPLE_TRANSFER);
+        setTransfer(data);
         setTransferFound(true);
       } else {
         setErrorMessage("Invalid connection code");
         setTransferFound(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error accessing files:", error);
       setErrorMessage(error.message || "Failed to access files");
     } finally {
@@ -171,7 +171,7 @@ export default function InternetReceive() {
 
           {session && (
             <ConnectionHistory
-              onUseCode={(code) => {
+              onUseCode={(code: string) => {
                 setConnectionCode(code);
                 handleAccessFiles(code);
               }}

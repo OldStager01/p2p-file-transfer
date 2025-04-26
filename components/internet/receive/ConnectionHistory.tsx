@@ -35,11 +35,15 @@ const SAMPLE_CONNECTIONS = [
   },
 ];
 
-export default function ConnectionHistory({ onUseCode }) {
+export default function ConnectionHistory({
+  onUseCode,
+}: {
+  onUseCode: (code: string) => void;
+}) {
   const { colors } = useTheme();
   const [connections, setConnections] = useState(SAMPLE_CONNECTIONS);
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: Date) => {
     const date = new Date(dateString);
 
     // Calculate time difference

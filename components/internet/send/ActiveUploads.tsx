@@ -57,7 +57,7 @@ export default function ActiveUploads({ uploads, onSelectUpload }) {
           style={[styles.codeBadge, { backgroundColor: colors.primary + "20" }]}
         >
           <Text style={[styles.codeText, { color: colors.primary }]}>
-            {item.connectionCode}
+            {item.connection_code}
           </Text>
         </View>
       </View>

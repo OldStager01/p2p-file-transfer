@@ -15,6 +15,7 @@ import Button from "@/components/Button";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "@/themes";
 import { useSelectedItems } from "@/providers/SelectedItemsProvider";
 import UploadProcessor from "./UploadProcessor";
+import { SelectedItemType } from "@/types";
 export default function UploadConfiguration({
   onBack,
   onComplete,
@@ -91,7 +92,7 @@ export default function UploadConfiguration({
       // In a real implementation, upload files to Supabase storage
       // and create database records
       // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Pass upload details to parent for summary
       onComplete({

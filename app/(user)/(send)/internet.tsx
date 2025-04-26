@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import SelectItems from "@/components/SelectItems";
 import SelectedItems from "@/components/SelectedItems";
 import { useAuth } from "@/providers/AuthProvider";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { supabase } from "@/lib/supabase/client";
 import Button from "@/components/Button";
 import { useSelectedItems } from "@/providers/SelectedItemsProvider";
@@ -72,19 +72,20 @@ export default function Internet() {
 
   const fetchActiveUploads = async () => {
     // In a real app, fetch from Supabase
-    // const { data, error } = await supabase
-    //   .from('transfers')
-    //   .select('*')
-    //   .eq('user_id', session.user.id)
-    //   .eq('is_active', true)
-    //   .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from("transfers")
+      .select("*")
+      .eq("user_id", session!.user.id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
 
     // For now, use mock data
-    setActiveUploads(MOCK_ACTIVE_UPLOADS);
+    console.log("Active Uploads:", data);
+    setActiveUploads(data || []);
   };
 
   // Step transition handler
-  const goToStep = (step) => {
+  const goToStep = (step: string) => {
     if (step === "configure" && selectedItems.length === 0) {
       // Don't proceed if no items selected
       return;
@@ -100,17 +101,17 @@ export default function Internet() {
     }
   };
 
-  const handleUploadComplete = (details) => {
+  const handleUploadComplete = (details: any) => {
     setUploadDetails(details);
     goToStep("summary");
   };
 
-  const handleOpenUploadDetail = (upload) => {
+  const handleOpenUploadDetail = (upload: any) => {
     setSelectedUpload(upload);
     setModalVisible(true);
   };
 
-  const handleUpdateUpload = (updatedUpload) => {
+  const handleUpdateUpload = (updatedUpload: any) => {
     // In a real app, update in Supabase
     setActiveUploads(
       activeUploads.map((u) => (u.id === updatedUpload.id ? updatedUpload : u))
@@ -118,8 +119,9 @@ export default function Internet() {
     setModalVisible(false);
   };
 
-  const handleDeleteUpload = (uploadId) => {
+  const handleDeleteUpload = (uploadId: string) => {
     // In a real app, delete from Supabase
+
     setActiveUploads(activeUploads.filter((u) => u.id !== uploadId));
     setModalVisible(false);
   };
@@ -192,7 +194,6 @@ export default function Internet() {
 
       {currentStep === "configure" && (
         <UploadConfiguration
-          selectedItems={selectedItems}
           onBack={() => goToStep("select")}
           onComplete={handleUploadComplete}
         />

@@ -80,7 +80,7 @@ export default function UploadProcessor({
         }
 
         setTransfer(data);
-
+        console.log(uploadableItems);
         // Step 2: Upload files
         setStage("uploading");
         const {

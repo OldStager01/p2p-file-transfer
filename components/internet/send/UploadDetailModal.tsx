@@ -9,6 +9,7 @@ import {
   Switch,
   Alert,
   ScrollView,
+  Platform,
 } from "react-native";
 import { useTheme } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,7 +23,7 @@ export default function UploadDetailModal({
   onClose,
   onUpdate,
   onDelete,
-}) {
+}: any) {
   const { colors } = useTheme();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -37,13 +38,13 @@ export default function UploadDetailModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [emails, setEmails] = useState(""); // In a real app, fetch from Supabase
 
-  const formatSize = (bytes) => {
+  const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const formatDate = (date) => {
+  const formatDate = (date: Date) => {
     return date.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
@@ -53,7 +54,7 @@ export default function UploadDetailModal({
     });
   };
 
-  const handleDateChange = (event, selectedDate) => {
+  const handleDateChange = (event: any, selectedDate: Date) => {
     setShowDatePicker(Platform.OS === "ios");
     if (selectedDate) {
       setExpiryDate(selectedDate);
@@ -199,7 +200,7 @@ export default function UploadDetailModal({
                     value={expiryDate}
                     mode="datetime"
                     display="default"
-                    onChange={handleDateChange}
+                    onChange={handleDateChange as any}
                     minimumDate={new Date()}
                   />
                 )}
@@ -229,7 +230,7 @@ export default function UploadDetailModal({
                 </Text>
                 <View style={styles.codeDisplay}>
                   <Text style={[styles.codeText, { color: colors.text }]}>
-                    {upload.connectionCode}
+                    {upload.connection_code}
                   </Text>
                   <TouchableOpacity
                     onPress={handleCopyCode}
