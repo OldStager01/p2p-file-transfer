@@ -5,7 +5,7 @@ import { Redirect } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import Internet from "./internet";
-import ExpirableLink from "./expirableLink";
+import ExpirableLink from "./downloads";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Local from "./local";
 import { useTheme } from "@react-navigation/native";

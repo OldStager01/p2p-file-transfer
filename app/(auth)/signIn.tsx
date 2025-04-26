@@ -6,17 +6,17 @@ import {
   Alert,
   Pressable,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Button from "@/components/Button";
-import { Link, router, Stack } from "expo-router";
-import { supabase } from "@/lib/supabase";
+import { Link, router, Stack, useRouter } from "expo-router";
+import { supabase } from "@/lib/supabase/client";
 import { useTheme } from "@react-navigation/native";
 
 const SignInScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const router = useRouter();
   const { colors } = useTheme();
 
   async function signInWithEmail() {
@@ -27,6 +27,9 @@ const SignInScreen = () => {
     });
 
     if (error) Alert.alert(error.message);
+    if (router.canGoBack()) {
+      router.back();
+    }
     setLoading(false);
   }
 
@@ -38,26 +41,28 @@ const SignInScreen = () => {
       <TextInput
         value={email}
         onChangeText={setEmail}
-        placeholder="jon@gmail.com"
+        placeholder="john@gmail.com"
         style={{
           ...styles.input,
           backgroundColor: colors.background,
           color: colors.text,
           borderColor: colors.border,
         }}
+        placeholderTextColor={`${colors.text}70` || colors.text}
       />
 
       <Text style={{ color: colors.text }}>Password</Text>
       <TextInput
         value={password}
         onChangeText={setPassword}
-        placeholder=""
+        placeholder="Password"
         style={{
           ...styles.input,
           backgroundColor: colors.background,
           color: colors.text,
           borderColor: colors.border,
         }}
+        placeholderTextColor={`${colors.text}70` || colors.text}
         secureTextEntry
       />
 

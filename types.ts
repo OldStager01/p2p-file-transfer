@@ -90,3 +90,11 @@ export type LocalDeviceType = {
   ip: string;
   port: number;
 };
+
+// export interface FileData {
+//   name: string;
+//   type: string;
+//   size: number;
+//   uri?: string;
+//   data: Blob | File | FormData;
+// }

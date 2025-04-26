@@ -10,7 +10,7 @@ import React, { useState } from "react";
 import Button from "@/components/Button";
 import Colors from "@/constants/Colors";
 import { Link, router, Stack } from "expo-router";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 import { useTheme } from "@react-navigation/native";
 
 const SignUpScreen = () => {

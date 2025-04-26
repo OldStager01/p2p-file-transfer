@@ -157,6 +157,7 @@ export default function NearbyDevices() {
   return (
     <View style={[styles.container, { backgroundColor: colors.card }]}>
       <FlatList
+        scrollEnabled={false}
         data={devices}
         renderItem={renderDeviceItem}
         keyExtractor={(item: LocalDeviceType) => item.ip}
