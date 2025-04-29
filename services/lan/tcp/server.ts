@@ -8,6 +8,7 @@ let activeClients: Map<number, TcpSocket.Socket> = new Map();
 let nextClientId = 1000;
 let socketBuffers: Map<number, string> = new Map(); // Track buffers for each socket
 let pendingOperations: Map<number, number> = new Map(); // Track pending operations
+let closingClients: Set<number> = new Set(); // Track clients that are in the process of closing
 
 export const startTcpServer = ({
   port = 12345,
@@ -101,6 +102,7 @@ const startTcpServerInternal = ({
   activeClients.clear();
   socketBuffers.clear();
   pendingOperations.clear();
+  closingClients.clear();
   nextClientId = 1000;
 
   // Initialize file reassembler
@@ -131,6 +133,22 @@ const startTcpServerInternal = ({
 
         // Handle incoming data
         socket.on("data", (data) => {
+          // Check if this client is in the process of closing
+          if (closingClients.has(clientId)) {
+            console.log(
+              `[TCP Server] Client #${clientId} is closing, ignoring data`
+            );
+            return;
+          }
+
+          // Check if this socket is still in our active clients map
+          if (!activeClients.has(clientId)) {
+            console.warn(
+              `[TCP Server] Received data for non-existent client #${clientId}`
+            );
+            return;
+          }
+
           // Mark the start of a data processing operation
           pendingOperations.set(
             clientId,
@@ -211,8 +229,11 @@ const startTcpServerInternal = ({
                   }
                 }
 
-                // Send acknowledgment back to sender
-                if (activeClients.has(clientId)) {
+                // Send acknowledgment back to sender - FIX: Check socket still exists in a safer way
+                if (
+                  activeClients.has(clientId) &&
+                  !closingClients.has(clientId)
+                ) {
                   try {
                     const ack = JSON.stringify({
                       type: "ack",
@@ -220,17 +241,70 @@ const startTcpServerInternal = ({
                       index: parsed.index,
                     });
 
+                    // Double check the socket is still valid before writing
+                    const clientSocket = activeClients.get(clientId);
+                    if (!clientSocket || (clientSocket as any).__closing) {
+                      console.warn(
+                        `[TCP Server] Client #${clientId} socket invalid when sending ACK`
+                      );
+
+                      // Safety clean-up
+                      if (clientSocket) {
+                        closingClients.add(clientId);
+                      }
+
+                      // Decrement pending operations
+                      pendingOperations.set(
+                        clientId,
+                        Math.max(0, (pendingOperations.get(clientId) || 0) - 1)
+                      );
+                      return;
+                    }
+
                     // Increment pending operations before sending ACK
                     pendingOperations.set(
                       clientId,
                       (pendingOperations.get(clientId) || 0) + 1
                     );
 
-                    socket.write(ack + "\n");
-                    pendingOperations.set(
-                      clientId,
-                      Math.max(0, (pendingOperations.get(clientId) || 0) - 1)
-                    );
+                    // Use a try-catch block when writing to socket
+                    try {
+                      clientSocket.write(ack + "\n");
+                      // Always decrement pending operations in callback
+                      pendingOperations.set(
+                        clientId,
+                        Math.max(0, (pendingOperations.get(clientId) || 0) - 1)
+                      );
+                    } catch (socketErr) {
+                      console.error(
+                        `[TCP Server] Client #${clientId} - Error writing to socket:`,
+                        socketErr
+                      );
+
+                      // Decrement pending operations if write fails
+                      pendingOperations.set(
+                        clientId,
+                        Math.max(0, (pendingOperations.get(clientId) || 0) - 1)
+                      );
+
+                      // Mark this client for cleanup
+                      closingClients.add(clientId);
+
+                      // Try to clean up the socket
+                      try {
+                        clientSocket.destroy();
+                      } catch (destroyErr) {
+                        // Ignore destroy errors
+                      }
+
+                      // Remove client from maps after short delay
+                      setTimeout(() => {
+                        activeClients.delete(clientId);
+                        socketBuffers.delete(clientId);
+                        pendingOperations.delete(clientId);
+                        closingClients.delete(clientId);
+                      }, 500);
+                    }
                   } catch (writeErr) {
                     console.error(
                       `[TCP Server] Client #${clientId} - Error preparing/sending ACK:`,
@@ -244,7 +318,13 @@ const startTcpServerInternal = ({
                   }
                 } else {
                   console.warn(
-                    `[TCP Server] Cannot send ACK - Client #${clientId} no longer registered`
+                    `[TCP Server] Cannot send ACK - Client #${clientId} no longer registered or is closing`
+                  );
+
+                  // Decrement pending operations counter
+                  pendingOperations.set(
+                    clientId,
+                    Math.max(0, (pendingOperations.get(clientId) || 0) - 1)
                   );
                 }
               } catch (jsonErr) {
@@ -274,6 +354,10 @@ const startTcpServerInternal = ({
             `[TCP Server] Client #${clientId} - Socket error:`,
             err
           );
+
+          // Mark this client as closing
+          closingClients.add(clientId);
+
           // DO NOT remove the socket from activeClients map here
           // Just log the error, let the close handler manage removal
         });
@@ -285,6 +369,9 @@ const startTcpServerInternal = ({
               hasError ? "with error" : "normally"
             }`
           );
+
+          // Mark this client as closing
+          closingClients.add(clientId);
 
           // Check if there are pending operations before removing the socket
           const pendingOps = pendingOperations.get(clientId) || 0;
@@ -302,6 +389,7 @@ const startTcpServerInternal = ({
               socketBuffers.delete(clientId);
               pendingOperations.delete(clientId);
               activeClients.delete(clientId);
+              closingClients.delete(clientId);
 
               // Notify listeners about the closure (only if this was the last client)
               if (activeClients.size === 0) {
@@ -316,6 +404,7 @@ const startTcpServerInternal = ({
             socketBuffers.delete(clientId);
             pendingOperations.delete(clientId);
             activeClients.delete(clientId);
+            closingClients.delete(clientId);
 
             // Notify listeners about the closure (only if this was the last client)
             if (activeClients.size === 0) {
@@ -395,6 +484,9 @@ const actuallyStopServer = () => {
         `[TCP Server] Closing client #${clientId} connection gracefully`
       );
 
+      // Mark this client as closing
+      closingClients.add(clientId);
+
       // Set a flag on the socket to prevent new operations
       (socket as any).__closing = true;
 
@@ -407,7 +499,11 @@ const actuallyStopServer = () => {
           console.log(
             `[TCP Server] Force closing client #${clientId} connection after timeout`
           );
-          socket.destroy();
+          try {
+            socket.destroy();
+          } catch (destroyErr) {
+            // Ignore destroy errors
+          }
         }
       }, 2000);
     } catch (err) {
@@ -423,10 +519,11 @@ const actuallyStopServer = () => {
 
   // Add a delay before closing the server to allow clients to disconnect gracefully
   setTimeout(() => {
-    // Clear the active clients map
+    // Clear all tracking maps
     activeClients.clear();
     socketBuffers.clear();
     pendingOperations.clear();
+    closingClients.clear();
 
     // Close the server
     if (server) {

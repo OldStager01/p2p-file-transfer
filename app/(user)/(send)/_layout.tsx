@@ -105,15 +105,6 @@ export default function _layout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="expirableLink"
-          component={ExpirableLink}
-          options={{
-            tabBarLabel: ({ focused }) => (
-              <CustomTabLabel title="Links" iconName="link" focused={focused} />
-            ),
-          }}
-        />
       </Tabs.Navigator>
     </SafeAreaView>
   );

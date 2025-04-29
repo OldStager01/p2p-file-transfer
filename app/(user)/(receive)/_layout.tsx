@@ -104,7 +104,7 @@ export default function _layout() {
             ),
           }}
         />
-        <Tabs.Screen
+        {/* <Tabs.Screen
           name="expirableLink"
           component={ExpirableLink}
           options={{
@@ -112,7 +112,7 @@ export default function _layout() {
               <CustomTabLabel title="Links" iconName="link" focused={focused} />
             ),
           }}
-        />
+        /> */}
       </Tabs.Navigator>
     </SafeAreaView>
   );

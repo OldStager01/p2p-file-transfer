@@ -111,35 +111,35 @@ export default function SelectItems() {
       onPress: handleSelectFile(addToSelection),
     },
     {
-      type: "Photos",
+      type: "Media",
       icon: "image-outline",
       color: "#F44771", // pink
       onPress: handleSelectMedia(addToSelection),
     },
-    {
-      type: "Text",
-      icon: "create-outline",
-      color: "#5E35B1", // purple
-      onPress: handleSelectText,
-    },
-    {
-      type: "Clipboard",
-      icon: "clipboard-outline",
-      color: "#43A047", // green
-      onPress: handlePaste(addToSelection),
-    },
+    // {
+    //   type: "Text",
+    //   icon: "create-outline",
+    //   color: "#5E35B1", // purple
+    //   onPress: handleSelectText,
+    // },
+    // {
+    //   type: "Clipboard",
+    //   icon: "clipboard-outline",
+    //   color: "#43A047", // green
+    //   onPress: handlePaste(addToSelection),
+    // },
     {
       type: "Folder",
       icon: "folder-outline",
       color: "#FB8C00", // orange
       onPress: handleSelectFolder(addToSelection),
     },
-    {
-      type: "Apps",
-      icon: "apps-outline",
-      color: "#26C6DA", // teal
-      onPress: handleSelectApp,
-    },
+    // {
+    //   type: "Apps",
+    //   icon: "apps-outline",
+    //   color: "#26C6DA", // teal
+    //   onPress: handleSelectApp,
+    // },
   ];
 
   return (

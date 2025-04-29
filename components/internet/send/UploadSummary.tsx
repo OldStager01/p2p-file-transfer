@@ -171,16 +171,20 @@ export default function UploadSummary({
               Files:
             </Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>
-              {uploadDetails.itemCount}{" "}
-              {uploadDetails.itemCount === 1 ? "file" : "files"} (
-              {formatSize(uploadDetails.totalSize)})
+              {uploadDetails?.itemCount || 0}{" "}
+              {uploadDetails?.itemCount && uploadDetails.itemCount === 1
+                ? "file"
+                : "files"}{" "}
+              ({formatSize(uploadDetails?.totalSize)})
             </Text>
           </View>
 
           <View style={styles.detailItem}>
             <Ionicons
               name={
-                uploadDetails.isPublic ? "globe-outline" : "lock-closed-outline"
+                uploadDetails?.isPublic
+                  ? "globe-outline"
+                  : "lock-closed-outline"
               }
               size={20}
               color={colors.text + "80"}
@@ -189,7 +193,7 @@ export default function UploadSummary({
               Access:
             </Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>
-              {uploadDetails.isPublic
+              {uploadDetails?.isPublic
                 ? "Public - Anyone with code"
                 : "Restricted - Specific emails"}
             </Text>
@@ -205,13 +209,13 @@ export default function UploadSummary({
               Expires:
             </Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>
-              {uploadDetails.expiryDate
-                ? formatDate(uploadDetails.expiryDate)
+              {uploadDetails?.expiryDate
+                ? formatDate(uploadDetails?.expiryDate)
                 : "No expiry date set"}
             </Text>
           </View>
 
-          {uploadDetails.title && (
+          {uploadDetails?.title && (
             <View style={styles.detailItem}>
               <Ionicons
                 name="text-outline"
@@ -222,7 +226,7 @@ export default function UploadSummary({
                 Title:
               </Text>
               <Text style={[styles.detailValue, { color: colors.text }]}>
-                {uploadDetails.title}
+                {uploadDetails?.title}
               </Text>
             </View>
           )}

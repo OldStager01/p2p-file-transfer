@@ -92,16 +92,11 @@ export default function Internet() {
     }
 
     setCurrentStep(step);
-
-    // Generate connection code when going to summary
-    if (step === "summary") {
-      // Generate a random 6-digit code
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setConnectionCode(code);
-    }
   };
 
-  const handleUploadComplete = (details: any) => {
+  const handleUploadComplete = (connectionCode: string, details: any) => {
+    setConnectionCode(connectionCode);
+    console.log("Details:", details);
     setUploadDetails(details);
     goToStep("summary");
   };
@@ -111,19 +106,87 @@ export default function Internet() {
     setModalVisible(true);
   };
 
-  const handleUpdateUpload = (updatedUpload: any) => {
-    // In a real app, update in Supabase
-    setActiveUploads(
-      activeUploads.map((u) => (u.id === updatedUpload.id ? updatedUpload : u))
-    );
-    setModalVisible(false);
+  // Replace these methods in your Internet.tsx component
+  const handleUpdateUpload = async (updatedUpload) => {
+    try {
+      // Only update allowed fields
+      const { data, error } = await supabase
+        .from("transfers")
+        .update({
+          title: updatedUpload.title,
+          description: updatedUpload.description,
+          is_active: updatedUpload.is_active,
+          is_public: updatedUpload.is_public,
+          expires_at: updatedUpload.expires_at,
+        })
+        .eq("id", updatedUpload.id)
+        .eq("user_id", session.user.id) // Security: ensure user owns this transfer
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      // Update the local state with updated data
+      setActiveUploads(
+        activeUploads.map((u) => (u.id === updatedUpload.id ? data[0] : u))
+      );
+
+      // Close the modal
+      setModalVisible(false);
+    } catch (error) {
+      console.error("Error updating upload:", error);
+      alert("Failed to update upload. Please try again.");
+    }
   };
 
-  const handleDeleteUpload = (uploadId: string) => {
-    // In a real app, delete from Supabase
+  const handleDeleteUpload = async (uploadId: string) => {
+    try {
+      // // Show confirmation dialog
+      // const confirmed = confirm(
+      //   "Are you sure you want to delete this upload? This will delete all associated files and cannot be undone."
+      // );
+      // console.log("Confirmed:", confirmed);
 
-    setActiveUploads(activeUploads.filter((u) => u.id !== uploadId));
-    setModalVisible(false);
+      // if (!confirmed) {
+      //   return; // User canceled the operation
+      // }
+
+      // Delete the transfer - files will be deleted automatically due to CASCADE constraint
+      const { error } = await supabase
+        .from("transfers")
+        .delete()
+        .eq("id", uploadId)
+        .eq("user_id", session!.user.id); // Security: ensure user owns this transfer
+
+      if (error) {
+        throw error;
+      }
+
+      // Also delete the files from storage
+      const { data: storageFiles, error: storageListError } =
+        await supabase.storage
+          .from("transfers")
+          .list(`${session!.user.id}/${uploadId}`);
+
+      if (!storageListError && storageFiles && storageFiles.length > 0) {
+        // Delete all files in the folder
+        const filePaths = storageFiles.map(
+          (file) => `${session!.user.id}/${uploadId}/${file.name}`
+        );
+
+        await supabase.storage.from("transfers").remove(filePaths);
+      }
+
+      // Update the local state by removing the deleted transfer
+      setActiveUploads(activeUploads.filter((u) => u.id !== uploadId));
+
+      // Close the modal
+      setModalVisible(false);
+    } catch (error) {
+      console.error("Error deleting upload:", error);
+      alert("Failed to delete upload. Please try again.");
+    }
   };
 
   // Auth check

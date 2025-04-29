@@ -21,7 +21,7 @@ export default function UploadConfiguration({
   onComplete,
 }: {
   onBack: () => void;
-  onComplete: (uploadDetails: any) => void;
+  onComplete: (connectionCode: string, uploadDetails: any) => void;
 }) {
   const { colors } = useTheme();
 
@@ -87,15 +87,11 @@ export default function UploadConfiguration({
     setShowUploadProcessor(true);
     setIsUploading(true);
   };
-  const handleUploadComplete = async () => {
+  const handleUploadComplete = async (result: any) => {
     try {
-      // In a real implementation, upload files to Supabase storage
-      // and create database records
-      // Simulate API delay
-      // await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Pass upload details to parent for summary
-      onComplete({
+      console.log("CONNECTION CODE", result.connectionCode);
+      // Pass the connection code from the result
+      onComplete(result.connectionCode, {
         isPublic,
         title: title || "File Transfer",
         expiryDate: useExpiry ? expiryDate : null,
@@ -289,7 +285,7 @@ export default function UploadConfiguration({
                     .map((e) => e.trim())
                     .filter(Boolean),
             }}
-            onComplete={handleUploadComplete}
+            onComplete={handleUploadComplete} // This now properly receives the result object
             onCancel={() => setShowUploadProcessor(false)}
           />
         ) : (
